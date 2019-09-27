@@ -9,9 +9,8 @@ def plsql():
     config = configparser.ConfigParser()
     config.read('./database.ini')
 
-    print()
-
-    return Database(**dict(config['database'].items()))
+    parameters = dict(config['database'].items())
+    return Database(**parameters)
 
 
 @contextmanager
