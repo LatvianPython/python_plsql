@@ -1,0 +1,11 @@
+CREATE USER test_user IDENTIFIED BY test_password
+/
+
+GRANT CONNECT, RESOURCE, DBA TO test_user
+/
+
+GRANT CREATE SESSION TO test_user
+/
+
+GRANT UNLIMITED TABLESPACE TO test_user
+/
