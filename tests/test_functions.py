@@ -13,5 +13,5 @@ def test_function_with_defaults(plsql, function_with_defaults):
     assert plsql.function_with_defaults(p_int_a=0, p_int_b=0) == 0
 
 
-def test_schema(plsql):
-    assert isinstance(plsql.test_user, Schema)
+def test_string_function(plsql, string_function):
+    assert plsql.string_function(p_str='test') == 'testtest'

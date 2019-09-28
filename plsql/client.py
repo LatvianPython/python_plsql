@@ -1,4 +1,5 @@
 import cx_Oracle as oracle
+from collections import namedtuple
 from functools import lru_cache
 
 
@@ -18,20 +19,65 @@ SELECT COUNT(*)
             raise ValueError('Not a database schema!')
 
 
-@lru_cache(maxsize=None)
-def get_schema(name, plsql):
-    try:
-        return Schema(name=name, plsql=plsql)
-    except ValueError:
-        return None
+# @lru_cache(maxsize=None)
+# def get_schema(name, plsql):
+#     try:
+#         return Schema(name=name, plsql=plsql)
+#     except ValueError:
+#         return None
+#
+#
+# class Package:
+#     pass
+#
+#
 
-
-class Package:
-    pass
+TEST_SCHEMA = 'TEST_USER'
 
 
 class Subprogram:
-    pass
+    ArgumentRecord = namedtuple('ArgumentRecord', 'argument_name, data_type, defaulted, in_out')
+    SubprogramRecord = namedtuple('SubprogramRecord', 'object_type, object_name')
+
+    subprogram_sql = f'''
+SELECT {','.join(ArgumentRecord._fields)}
+  FROM all_procedures
+ WHERE owner = UPPER(:owner)
+   AND object_name = UPPER(:name)
+'''
+
+    argument_sql = f'''
+SELECT {','.join(ArgumentRecord._fields)}
+  FROM all_arguments
+ WHERE owner = UPPER(:owner)
+   AND object_name = UPPER(:name)
+'''
+
+    argument_mapping = {
+        'VARCHAR2': str,
+        'INTEGER': int,
+        'NUMBER': float
+    }
+
+    def __init__(self, name, plsql):
+        self.name, self.plsql = name, plsql
+
+        binds = {'owner': TEST_SCHEMA, 'name': name.upper()}
+        self.arguments = (
+            self.ArgumentRecord(*argument)
+            for argument
+            in plsql.query(sql_query=self.argument_sql, bind_variables=binds)
+        )
+
+        self.return_type = next(
+            self.argument_mapping[argument.data_type]
+            for argument
+            in self.arguments
+        )
+
+    def __call__(self, *args, **kwargs):
+        with self.plsql.connection.cursor() as cursor:
+            return cursor.callfunc(self.name, self.return_type, keywordParameters=kwargs)
 
 
 class Database:
@@ -47,17 +93,7 @@ class Database:
     def query(self, sql_query, bind_variables):
         with self.connection.cursor() as cursor:
             cursor.execute(sql_query, bind_variables)
-            for row in cursor:
-                yield row
+            yield from cursor
 
     def __getattr__(self, item):
-        schema = get_schema(item, self)
-
-        if schema:
-            return schema
-
-        def func(**kwargs):
-            with self.connection.cursor() as cursor:
-                return cursor.callfunc(item, int, keywordParameters=kwargs)
-
-        return func
+        return Subprogram(item, self)

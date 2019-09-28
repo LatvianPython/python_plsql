@@ -20,7 +20,7 @@ def managed_object(plsql, object_type, object_name):
 
     plsql.execute_immediate(sql_text)
     yield
-    plsql.execute_immediate(f'DROP {object_type} {object_name}')
+    # plsql.execute_immediate(f'DROP {object_type} {object_name}')
 
 
 @pytest.fixture(scope='module')
@@ -32,4 +32,10 @@ def simple_function(plsql):
 @pytest.fixture(scope='module')
 def function_with_defaults(plsql):
     with managed_object(plsql, 'function', 'function_with_defaults'):
+        yield
+
+
+@pytest.fixture(scope='module')
+def string_function(plsql):
+    with managed_object(plsql, 'function', 'string_function'):
         yield
