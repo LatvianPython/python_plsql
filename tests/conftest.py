@@ -51,3 +51,9 @@ def simple_procedure(plsql):
 def procedure_out_params(plsql):
     with managed_object(plsql, 'procedure', 'procedure_out_params'):
         yield
+
+
+@pytest.fixture(scope='module')
+def procedure_in_out_params(plsql):
+    with managed_object(plsql, 'procedure', 'procedure_in_out_params'):
+        yield
