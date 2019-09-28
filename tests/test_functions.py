@@ -15,7 +15,7 @@ def test_string_function(plsql, string_function):
 
 
 def test_function_in_out(plsql, function_in_out):
-    result, in_out = plsql.function_in_out(p_int=21, p_str='input')
+    result, in_out = plsql.function_in_out(p_int=21, p_float=1337.42, p_str='input')
 
     assert result == 42
     assert in_out['p_str'] == 'input: 42'
