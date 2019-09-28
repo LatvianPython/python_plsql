@@ -33,6 +33,8 @@ SELECT COUNT(*)
 #
 
 TEST_SCHEMA = 'TEST_USER'
+FUNCTION = 'FUNCTION'
+PROCEDURE = 'PROCEDURE'
 
 
 class Subprogram:
@@ -40,7 +42,7 @@ class Subprogram:
     SubprogramRecord = namedtuple('SubprogramRecord', 'object_type, object_name')
 
     subprogram_sql = f'''
-SELECT {','.join(ArgumentRecord._fields)}
+SELECT {','.join(SubprogramRecord._fields)}
   FROM all_procedures
  WHERE owner = UPPER(:owner)
    AND object_name = UPPER(:name)
@@ -62,22 +64,32 @@ SELECT {','.join(ArgumentRecord._fields)}
     def __init__(self, name, plsql):
         self.name, self.plsql = name, plsql
 
-        binds = {'owner': TEST_SCHEMA, 'name': name.upper()}
-        self.arguments = (
+        binds = {'owner': TEST_SCHEMA, 'name': name}
+        self.definition = self.SubprogramRecord(*next(plsql.query(sql_query=self.subprogram_sql, bind_variables=binds)))
+
+        binds = {'owner': TEST_SCHEMA, 'name': name}
+        self.arguments = [
             self.ArgumentRecord(*argument)
             for argument
             in plsql.query(sql_query=self.argument_sql, bind_variables=binds)
-        )
+        ]
 
-        self.return_type = next(
-            self.argument_mapping[argument.data_type]
-            for argument
-            in self.arguments
-        )
+        if self.definition.object_type == FUNCTION:
+            self.return_type = next(
+                self.argument_mapping[argument.data_type]
+                for argument
+                in self.arguments
+                if argument.argument_name is None
+            )
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, **kwargs):
         with self.plsql.connection.cursor() as cursor:
-            return cursor.callfunc(self.name, self.return_type, keywordParameters=kwargs)
+            if self.definition.object_type == FUNCTION:
+                return cursor.callfunc(self.name, self.return_type, keywordParameters=kwargs)
+            elif self.definition.object_type == PROCEDURE:
+                cursor.callproc(self.name, keywordParameters=kwargs)
+            else:
+                raise NotImplementedError(f'Unrecognized object_type "{self.definition.object_type}"!')
 
 
 class Database:
@@ -93,7 +105,8 @@ class Database:
     def query(self, sql_query, bind_variables):
         with self.connection.cursor() as cursor:
             cursor.execute(sql_query, bind_variables)
-            yield from cursor
+            for rec in cursor:
+                yield rec
 
     def __getattr__(self, item):
         return Subprogram(item, self)

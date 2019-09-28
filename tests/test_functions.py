@@ -1,6 +1,3 @@
-from plsql.client import Schema
-
-
 def test_simple_function(plsql, simple_function):
     assert plsql.simple_function(p_int=5) == 5 + 5
     assert plsql.simple_function(p_int=None) is None
