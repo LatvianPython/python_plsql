@@ -87,7 +87,25 @@ SELECT {','.join(ArgumentRecord._fields)}
             if self.definition.object_type == FUNCTION:
                 return cursor.callfunc(self.name, self.return_type, keywordParameters=kwargs)
             elif self.definition.object_type == PROCEDURE:
+
+                out_parameters = [
+                    (argument.argument_name.lower(), cursor.var(self.argument_mapping[argument.data_type]))
+                    for argument
+                    in self.arguments
+                    if 'OUT' in argument.in_out
+                ]
+
+                for name, parameter in out_parameters:
+                    kwargs[name] = parameter
+
                 cursor.callproc(self.name, keywordParameters=kwargs)
+
+                return {
+                    name: parameter.getvalue()
+                    for name, parameter
+                    in out_parameters
+                }
+
             else:
                 raise NotImplementedError(f'Unrecognized object_type "{self.definition.object_type}"!')
 

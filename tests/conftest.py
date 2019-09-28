@@ -45,3 +45,9 @@ def string_function(plsql):
 def simple_procedure(plsql):
     with managed_object(plsql, 'procedure', 'simple_procedure'):
         yield
+
+
+@pytest.fixture(scope='module')
+def procedure_out_params(plsql):
+    with managed_object(plsql, 'procedure', 'procedure_out_params'):
+        yield
