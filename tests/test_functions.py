@@ -12,3 +12,11 @@ def test_function_with_defaults(plsql, function_with_defaults):
 
 def test_string_function(plsql, string_function):
     assert plsql.string_function(p_str='test') == 'testtest'
+
+
+def test_function_in_out(plsql, function_in_out):
+    result, in_out = plsql.function_in_out(p_int=21, p_str='input')
+
+    assert result == 42
+    assert in_out['p_str'] == 'input: 42'
+    assert in_out['p_float'] == 10.5

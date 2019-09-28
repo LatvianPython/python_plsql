@@ -84,24 +84,33 @@ SELECT {','.join(ArgumentRecord._fields)}
 
     def __call__(self, **kwargs):
         with self.plsql.connection.cursor() as cursor:
+
+            in_out_parameters = [
+                (argument.argument_name.lower(), cursor.var(self.argument_mapping[argument.data_type]))
+                for argument
+                in self.arguments
+                if 'OUT' in argument.in_out
+                if argument.argument_name is not None
+            ]
+
+            for name, parameter in in_out_parameters:
+                try:
+                    parameter.setvalue(0, kwargs[name])
+                except KeyError:
+                    pass
+                kwargs[name] = parameter
+
             if self.definition.object_type == FUNCTION:
-                return cursor.callfunc(self.name, self.return_type, keywordParameters=kwargs)
+                result = cursor.callfunc(self.name, self.return_type, keywordParameters=kwargs)
+
+                if in_out_parameters:
+                    return result, {
+                        name: parameter.getvalue()
+                        for name, parameter
+                        in in_out_parameters
+                    }
+                return result
             elif self.definition.object_type == PROCEDURE:
-
-                in_out_parameters = [
-                    (argument.argument_name.lower(), cursor.var(self.argument_mapping[argument.data_type]))
-                    for argument
-                    in self.arguments
-                    if 'OUT' in argument.in_out
-                ]
-
-                for name, parameter in in_out_parameters:
-                    try:
-                        parameter.setvalue(0, kwargs[name])
-                    except KeyError:
-                        pass
-                    kwargs[name] = parameter
-
                 cursor.callproc(self.name, keywordParameters=kwargs)
 
                 if in_out_parameters:
@@ -110,7 +119,6 @@ SELECT {','.join(ArgumentRecord._fields)}
                         for name, parameter
                         in in_out_parameters
                     }
-
             else:
                 raise NotImplementedError(f'Unrecognized object_type "{self.definition.object_type}"!')
 
