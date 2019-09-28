@@ -20,7 +20,7 @@ def managed_object(plsql, object_type, object_name):
 
     plsql.execute_immediate(sql_text)
     yield
-    # plsql.execute_immediate(f'DROP {object_type} {object_name}')
+    plsql.execute_immediate(f'DROP {object_type} {object_name}')
 
 
 @pytest.fixture(scope='module')

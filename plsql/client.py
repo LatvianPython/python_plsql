@@ -64,6 +64,9 @@ SELECT {','.join(ArgumentRecord._fields)}
     def __init__(self, name, plsql):
         self.name, self.plsql = name, plsql
 
+        if '.' in name:
+            schema, name = name.split('.')
+
         binds = {'owner': TEST_SCHEMA, 'name': name}
         self.definition = self.SubprogramRecord(*next(plsql.query(sql_query=self.subprogram_sql, bind_variables=binds)))
 
@@ -123,6 +126,19 @@ SELECT {','.join(ArgumentRecord._fields)}
                 raise NotImplementedError(f'Unrecognized object_type "{self.definition.object_type}"!')
 
 
+class AttributeWalker:
+    def __init__(self, plsql, attr):
+        self.plsql, self.attr = plsql, [attr]
+
+    def __getattr__(self, item):
+        self.attr.append(item)
+        return self
+
+    def __call__(self, **kwargs):
+        subprogram = Subprogram('.'.join(self.attr), self.plsql)
+        return subprogram(**kwargs)
+
+
 class Database:
 
     def __init__(self, user, password, host, port, service_name, encoding):
@@ -140,4 +156,4 @@ class Database:
                 yield rec
 
     def __getattr__(self, item):
-        return Subprogram(item, self)
+        return AttributeWalker(self, item)
