@@ -1,4 +1,5 @@
 from collections import namedtuple
+from operator import itemgetter
 
 import cx_Oracle as oracle
 
@@ -99,8 +100,8 @@ SELECT argument_name, data_type, defaulted, in_out
 
             def parse_in_out(parameters):
                 return {
-                    name: parameter.getvalue()
-                    for name, parameter
+                    param_name: param_value.getvalue()
+                    for param_name, param_value
                     in parameters
                 }
 
@@ -128,6 +129,9 @@ class AttributeWalker:
         return self
 
     def __call__(self, **kwargs):
+        if len(self.attr) > 3:
+            raise ValueError('Attribute access is too deep, maximum of 3 allowed! (schema, package, subprogram)')
+
         subprogram = Subprogram('.'.join(self.attr), self.plsql)
         return subprogram(**kwargs)
 
@@ -143,15 +147,21 @@ class Query:
                 cursor.execute(self.query, self.binds)
             else:
                 cursor.execute(self.query)
-            Result = namedtuple('Result', [column[0].lower() for column in cursor.description])
-            for rec in cursor:
-                yield Result(*rec)
+
+            if len(cursor.description) > 1:
+                record_type = namedtuple('Result', [column[0].lower() for column in cursor.description])
+
+                def result(rec):
+                    return record_type(*rec)
+            else:
+                result = itemgetter(0)
+
+            for record in cursor:
+                yield result(record)
 
     @property
     def first(self):
         first_row = next(self.execute())
-        if len(first_row) == 1:
-            return first_row[0]
         return first_row
 
     @property
