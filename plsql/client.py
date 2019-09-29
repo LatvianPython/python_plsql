@@ -32,6 +32,7 @@ import cx_Oracle as oracle
 
 FUNCTION = 'FUNCTION'
 PROCEDURE = 'PROCEDURE'
+PACKAGE = 'PACKAGE'
 
 
 class Subprogram:
@@ -44,7 +45,7 @@ SELECT argument_name, data_type, defaulted, in_out
    AND subprogram_id = :subprogram_id
 '''
     subprogram_sql = f'''
-SELECT owner, object_name, procedure_name, object_type
+SELECT owner, NVL(procedure_name, object_name) object_name, object_type
   FROM all_procedures
  WHERE owner = UPPER(:owner)
    AND object_id = :object_id 
@@ -70,13 +71,15 @@ SELECT owner, object_name, procedure_name, object_type
                  'object_id': self.object_id, 'subprogram_id': self.subprogram_id}
         self.arguments = list(plsql.query(sql_query=self.argument_sql, bind_variables=binds).all)
 
-        if self.definition.object_type == FUNCTION:
+        try:
             self.return_type = next(
                 self.argument_mapping[argument.data_type]
                 for argument
                 in self.arguments
                 if argument.argument_name is None
             )
+        except StopIteration:
+            self.return_type = None
 
     def __call__(self, **kwargs):
         with self.plsql.connection.cursor() as cursor:
@@ -103,19 +106,27 @@ SELECT owner, object_name, procedure_name, object_type
                     in parameters
                 }
 
-            if self.definition.object_type == FUNCTION:
+            object_type = self.definition.object_type
+
+            if object_type == PACKAGE:
+                if self.return_type:
+                    object_type = FUNCTION
+                else:
+                    object_type = PROCEDURE
+
+            if object_type == FUNCTION:
                 result = cursor.callfunc(self.name, self.return_type, keywordParameters=kwargs)
 
                 if in_out_parameters:
                     return result, parse_in_out(in_out_parameters)
                 return result
-            elif self.definition.object_type == PROCEDURE:
+            elif object_type == PROCEDURE:
                 cursor.callproc(self.name, keywordParameters=kwargs)
 
                 if in_out_parameters:
                     return parse_in_out(in_out_parameters)
             else:
-                raise NotImplementedError(f'Unrecognized object_type "{self.definition.object_type}"!')
+                raise NotImplementedError(f'Unrecognized object_type "{object_type}"!')
 
 
 def resolve_subprogram(attributes, parameters, plsql):

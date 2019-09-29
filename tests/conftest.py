@@ -27,7 +27,7 @@ def plsql():
 
     yield database
 
-    drop_all_objects(database, objects)
+    # drop_all_objects(database, objects)
 
 
 def create_objects(plsql, objects):
@@ -38,6 +38,16 @@ def create_objects(plsql, objects):
 
 
 def drop_all_objects(plsql, objects):
-    for file, directory in objects:
-        object_type, object_name = directory.name, file.stem,
+    def clean_name(name):
+        if '-' in name:
+            return name[:name.find('-')]
+        return name
+
+    objects = {
+        (clean_name(file.stem), directory.name)
+        for file, directory
+        in objects
+    }
+
+    for object_name, object_type in objects:
         plsql.execute_immediate(f'DROP {object_type} {object_name}')
