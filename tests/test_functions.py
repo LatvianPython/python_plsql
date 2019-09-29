@@ -11,7 +11,7 @@ def test_function_with_defaults(plsql):
 
 
 def test_string_function(plsql):
-    assert plsql.string_function(p_str='test') == 'testtest'
+    assert plsql.string_function(p_str='test') == 'test' * 2
 
 
 def test_function_in_out(plsql):

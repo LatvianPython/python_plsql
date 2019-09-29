@@ -30,24 +30,26 @@ import cx_Oracle as oracle
 #
 #
 
-TEST_SCHEMA = 'TEST_USER'
 FUNCTION = 'FUNCTION'
 PROCEDURE = 'PROCEDURE'
 
 
 class Subprogram:
-    subprogram_sql = f'''
-SELECT object_type, object_name
-  FROM all_procedures
- WHERE owner = UPPER(:owner)
-   AND object_name = UPPER(:name)
-'''
-
     argument_sql = f'''
 SELECT argument_name, data_type, defaulted, in_out
   FROM all_arguments
  WHERE owner = UPPER(:owner)
-   AND object_name = UPPER(:name)
+   AND object_name = :object_name
+   AND object_id = :object_id 
+   AND subprogram_id = :subprogram_id
+'''
+    subprogram_sql = f'''
+SELECT owner, object_name, procedure_name, object_type
+  FROM all_procedures
+ WHERE owner = UPPER(:owner)
+   AND object_id = :object_id 
+   AND subprogram_id = :subprogram_id
+   AND object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
 '''
 
     argument_mapping = {
@@ -56,21 +58,17 @@ SELECT argument_name, data_type, defaulted, in_out
         'NUMBER': float
     }
 
-    def __init__(self, name, plsql):
-        self.name, self.plsql = name, plsql
+    def __init__(self, plsql, name, owner, object_id, subprogram_id):
+        self.owner, self.object_id, self.subprogram_id = owner, object_id, subprogram_id
+        self.plsql = plsql
+        self.name = name
 
-        if '.' in name:
-            schema, name = name.split('.')
-
-        binds = {'owner': TEST_SCHEMA, 'name': name}
+        binds = {'owner': self.owner, 'object_id': self.object_id, 'subprogram_id': self.subprogram_id}
         self.definition = plsql.query(sql_query=self.subprogram_sql, bind_variables=binds).first
 
-        binds = {'owner': TEST_SCHEMA, 'name': name}
-        self.arguments = [
-            argument
-            for argument
-            in plsql.query(sql_query=self.argument_sql, bind_variables=binds).all
-        ]
+        binds = {'owner': self.owner, 'object_name': self.definition.object_name,
+                 'object_id': self.object_id, 'subprogram_id': self.subprogram_id}
+        self.arguments = list(plsql.query(sql_query=self.argument_sql, bind_variables=binds).all)
 
         if self.definition.object_type == FUNCTION:
             self.return_type = next(
@@ -120,20 +118,54 @@ SELECT argument_name, data_type, defaulted, in_out
                 raise NotImplementedError(f'Unrecognized object_type "{self.definition.object_type}"!')
 
 
+def resolve_subprogram(attributes, parameters, plsql):
+    assert attributes, 'Attributes should not be empty!'
+
+    attribute_len = len(attributes)
+    if attribute_len > 3:
+        raise ValueError('Attribute access is too deep, maximum of 3 allowed! (schema, package, subprogram)')
+
+    if attribute_len == 3:
+        # schema, package, subprogram = attributes
+        raise NotImplementedError('Can not access with full path!')
+    elif attribute_len == 2:
+        _ = parameters
+        raise NotImplementedError('Can not access packages or specify schema of subprogram!')
+        # search for subprogram assuming package name is provided
+        # if fails then must be standalone and schema is provided
+    else:
+        subprogram_sql = f'''
+        SELECT owner, object_id, subprogram_id
+          FROM all_procedures
+         WHERE object_name = UPPER(:name)
+           AND object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
+        '''
+        subprogram = attributes[0]
+
+        matching_subprograms = list(plsql.query(subprogram_sql, {'name': subprogram}).all)
+
+        if not matching_subprograms:
+            raise AttributeError('No such subprogram exists!')
+
+        if len(matching_subprograms) > 1:
+            raise NotImplementedError('Can not resolve to single subprogram!')
+
+        return matching_subprograms[0]
+
+
 class AttributeWalker:
     def __init__(self, plsql, attr):
-        self.plsql, self.attr = plsql, [attr]
+        self.plsql, self.attributes = plsql, [attr]
 
     def __getattr__(self, item):
-        self.attr.append(item)
+        self.attributes.append(item)
         return self
 
-    def __call__(self, **kwargs):
-        if len(self.attr) > 3:
-            raise ValueError('Attribute access is too deep, maximum of 3 allowed! (schema, package, subprogram)')
+    def __call__(self, **parameters):
+        subprogram = resolve_subprogram(attributes=self.attributes, parameters=parameters, plsql=self.plsql)
 
-        subprogram = Subprogram('.'.join(self.attr), self.plsql)
-        return subprogram(**kwargs)
+        subprogram = Subprogram(self.plsql, '.'.join(self.attributes), **subprogram._asdict())
+        return subprogram(**parameters)
 
 
 class Query:
