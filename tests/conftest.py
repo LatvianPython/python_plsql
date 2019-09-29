@@ -27,7 +27,7 @@ def plsql():
 
     yield database
 
-    # drop_all_objects(database, objects)
+    drop_all_objects(database, objects)
 
 
 def create_objects(plsql, objects):

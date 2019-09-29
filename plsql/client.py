@@ -3,33 +3,6 @@ from operator import itemgetter
 
 import cx_Oracle as oracle
 
-# class Schema:
-#     sql_query = '''
-# SELECT COUNT(*)
-#   FROM all_users
-#  WHERE username = :name
-# '''
-#
-#     def __init__(self, name, plsql):
-#         self.name = name
-#         self.plsql = plsql
-#         result = list(plsql.query(sql_query=self.sql_query,
-#                                   bind_variables={'name': name.upper()}))
-#         if sum(row[0] for row in result) == 0:
-#             raise ValueError('Not a database schema!')
-# @lru_cache(maxsize=None)
-# def get_schema(name, plsql):
-#     try:
-#         return Schema(name=name, plsql=plsql)
-#     except ValueError:
-#         return None
-#
-#
-# class Package:
-#     pass
-#
-#
-
 FUNCTION = 'FUNCTION'
 PROCEDURE = 'PROCEDURE'
 PACKAGE = 'PACKAGE'
