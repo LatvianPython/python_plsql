@@ -1,24 +1,21 @@
-import cx_Oracle as oracle
 from collections import namedtuple
-from functools import lru_cache
 
+import cx_Oracle as oracle
 
-class Schema:
-    sql_query = '''
-SELECT COUNT(*)
-  FROM all_users
- WHERE username = :name
-'''
-
-    def __init__(self, name, plsql):
-        self.name = name
-        self.plsql = plsql
-        result = list(plsql.query(sql_query=self.sql_query,
-                                  bind_variables={'name': name.upper()}))
-        if sum(row[0] for row in result) == 0:
-            raise ValueError('Not a database schema!')
-
-
+# class Schema:
+#     sql_query = '''
+# SELECT COUNT(*)
+#   FROM all_users
+#  WHERE username = :name
+# '''
+#
+#     def __init__(self, name, plsql):
+#         self.name = name
+#         self.plsql = plsql
+#         result = list(plsql.query(sql_query=self.sql_query,
+#                                   bind_variables={'name': name.upper()}))
+#         if sum(row[0] for row in result) == 0:
+#             raise ValueError('Not a database schema!')
 # @lru_cache(maxsize=None)
 # def get_schema(name, plsql):
 #     try:
@@ -38,18 +35,15 @@ PROCEDURE = 'PROCEDURE'
 
 
 class Subprogram:
-    ArgumentRecord = namedtuple('ArgumentRecord', 'argument_name, data_type, defaulted, in_out')
-    SubprogramRecord = namedtuple('SubprogramRecord', 'object_type, object_name')
-
     subprogram_sql = f'''
-SELECT {','.join(SubprogramRecord._fields)}
+SELECT object_type, object_name
   FROM all_procedures
  WHERE owner = UPPER(:owner)
    AND object_name = UPPER(:name)
 '''
 
     argument_sql = f'''
-SELECT {','.join(ArgumentRecord._fields)}
+SELECT argument_name, data_type, defaulted, in_out
   FROM all_arguments
  WHERE owner = UPPER(:owner)
    AND object_name = UPPER(:name)
@@ -68,13 +62,13 @@ SELECT {','.join(ArgumentRecord._fields)}
             schema, name = name.split('.')
 
         binds = {'owner': TEST_SCHEMA, 'name': name}
-        self.definition = self.SubprogramRecord(*next(plsql.query(sql_query=self.subprogram_sql, bind_variables=binds)))
+        self.definition = plsql.query(sql_query=self.subprogram_sql, bind_variables=binds).first
 
         binds = {'owner': TEST_SCHEMA, 'name': name}
         self.arguments = [
-            self.ArgumentRecord(*argument)
+            argument
             for argument
-            in plsql.query(sql_query=self.argument_sql, bind_variables=binds)
+            in plsql.query(sql_query=self.argument_sql, bind_variables=binds).all
         ]
 
         if self.definition.object_type == FUNCTION:
@@ -139,6 +133,30 @@ class AttributeWalker:
         return subprogram(**kwargs)
 
 
+class Query:
+
+    def __init__(self, connection, query, binds):
+        self.connection, self.query, self.binds = connection, query, binds
+
+    def execute(self):
+        with self.connection.cursor() as cursor:
+            cursor.execute(self.query, self.binds)
+            Result = namedtuple('Result', [column[0].lower() for column in cursor.description])
+            for rec in cursor:
+                yield Result(*rec)
+
+    @property
+    def first(self):
+        first_row = next(self.execute())
+        if len(first_row) == 1:
+            return first_row[0]
+        return first_row
+
+    @property
+    def all(self):
+        return self.execute()
+
+
 class Database:
 
     def __init__(self, user, password, host, port, service_name, encoding):
@@ -149,11 +167,8 @@ class Database:
         with self.connection.cursor() as cursor:
             cursor.execute(dynamic_string)
 
-    def query(self, sql_query, bind_variables):
-        with self.connection.cursor() as cursor:
-            cursor.execute(sql_query, bind_variables)
-            for rec in cursor:
-                yield rec
+    def query(self, sql_query, bind_variables=None):
+        return Query(self.connection, sql_query, bind_variables)
 
     def __getattr__(self, item):
         return AttributeWalker(self, item)
