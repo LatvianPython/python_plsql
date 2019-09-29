@@ -1,7 +1,9 @@
-import pytest
-from plsql import Database
-from contextlib import contextmanager
 import configparser
+from pathlib import Path
+
+import pytest
+
+from plsql import Database
 
 
 @pytest.fixture(scope='session')
@@ -10,56 +12,32 @@ def plsql():
     config.read('./database.ini')
 
     parameters = dict(config['database'].items())
-    return Database(**parameters)
+
+    database = Database(**parameters)
+
+    directories = [directory for directory in Path('.').glob('./sql/*/') if directory.is_dir()]
+
+    objects = [
+        (file, directory)
+        for directory in directories
+        for file in directory.glob('*.sql')
+    ]
+
+    create_object(database, objects)
+
+    yield database
+
+    drop_all_objects(database, objects)
 
 
-@contextmanager
-def managed_object(plsql, object_type, object_name):
-    with open(f'./sql/{object_type}/{object_name}.sql', mode='r', encoding='utf8') as file:
-        sql_text = file.read()
-
-    plsql.execute_immediate(sql_text)
-    yield
-    plsql.execute_immediate(f'DROP {object_type} {object_name}')
+def create_object(plsql, objects):
+    for file, _ in objects:
+        with open(file, mode='r', encoding='utf8') as file:
+            sql_text = file.read()
+        plsql.execute_immediate(sql_text)
 
 
-@pytest.fixture(scope='module')
-def simple_function(plsql):
-    with managed_object(plsql, 'function', 'simple_function'):
-        yield
-
-
-@pytest.fixture(scope='module')
-def function_with_defaults(plsql):
-    with managed_object(plsql, 'function', 'function_with_defaults'):
-        yield
-
-
-@pytest.fixture(scope='module')
-def string_function(plsql):
-    with managed_object(plsql, 'function', 'string_function'):
-        yield
-
-
-@pytest.fixture(scope='module')
-def simple_procedure(plsql):
-    with managed_object(plsql, 'procedure', 'simple_procedure'):
-        yield
-
-
-@pytest.fixture(scope='module')
-def procedure_out_params(plsql):
-    with managed_object(plsql, 'procedure', 'procedure_out_params'):
-        yield
-
-
-@pytest.fixture(scope='module')
-def procedure_in_out_params(plsql):
-    with managed_object(plsql, 'procedure', 'procedure_in_out_params'):
-        yield
-
-
-@pytest.fixture(scope='module')
-def function_in_out(plsql):
-    with managed_object(plsql, 'function', 'function_in_out'):
-        yield
+def drop_all_objects(plsql, objects):
+    for file, directory in objects:
+        object_type, object_name = directory.name, file.stem,
+        plsql.execute_immediate(f'DROP {object_type} {object_name}')

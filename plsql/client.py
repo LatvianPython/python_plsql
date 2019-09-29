@@ -97,25 +97,24 @@ SELECT argument_name, data_type, defaulted, in_out
                     pass
                 kwargs[name] = parameter
 
+            def parse_in_out(parameters):
+                return {
+                    name: parameter.getvalue()
+                    for name, parameter
+                    in parameters
+                }
+
             if self.definition.object_type == FUNCTION:
                 result = cursor.callfunc(self.name, self.return_type, keywordParameters=kwargs)
 
                 if in_out_parameters:
-                    return result, {
-                        name: parameter.getvalue()
-                        for name, parameter
-                        in in_out_parameters
-                    }
+                    return result, parse_in_out(in_out_parameters)
                 return result
             elif self.definition.object_type == PROCEDURE:
                 cursor.callproc(self.name, keywordParameters=kwargs)
 
                 if in_out_parameters:
-                    return {
-                        name: parameter.getvalue()
-                        for name, parameter
-                        in in_out_parameters
-                    }
+                    return parse_in_out(in_out_parameters)
             else:
                 raise NotImplementedError(f'Unrecognized object_type "{self.definition.object_type}"!')
 
@@ -140,7 +139,10 @@ class Query:
 
     def execute(self):
         with self.connection.cursor() as cursor:
-            cursor.execute(self.query, self.binds)
+            if self.binds:
+                cursor.execute(self.query, self.binds)
+            else:
+                cursor.execute(self.query)
             Result = namedtuple('Result', [column[0].lower() for column in cursor.description])
             for rec in cursor:
                 yield Result(*rec)
