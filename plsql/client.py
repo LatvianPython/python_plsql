@@ -204,9 +204,9 @@ class AttributeWalker:
         return self
 
     def __call__(self, **parameters):
-        subprogram = resolve_subprogram(attributes=self.attributes, parameters=parameters, plsql=self.plsql)
-
-        subprogram = Subprogram(self.plsql, '.'.join(self.attributes), **subprogram._asdict())
+        # todo: potential
+        found_subprogram = resolve_subprogram(attributes=self.attributes, parameters=parameters, plsql=self.plsql)
+        subprogram = Subprogram(self.plsql, '.'.join(self.attributes), **found_subprogram._asdict())
         return subprogram(**parameters)
 
 
