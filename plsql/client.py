@@ -129,10 +129,41 @@ def resolve_subprogram(attributes, parameters, plsql):
         # schema, package, subprogram = attributes
         raise NotImplementedError('Can not access with full path!')
     elif attribute_len == 2:
+        # todo: at some point use to refine search due to possibility of overloaded subprograms in package
         _ = parameters
-        raise NotImplementedError('Can not access packages or specify schema of subprogram!')
+
         # search for subprogram assuming package name is provided
+        object_name, procedure_name = attributes
+        subprogram_sql = f'''
+        SELECT owner, object_id, subprogram_id
+          FROM all_procedures
+         WHERE object_name = UPPER(:name)
+           AND procedure_name = UPPER(:procedure_name)
+           AND object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
+        '''
+        binds = {'name': object_name, 'procedure_name': procedure_name}
+        matching_subprograms = list(plsql.query(subprogram_sql, binds).all)
+
+        if len(matching_subprograms) > 1:
+            raise NotImplementedError('Can not resolve to single subprogram!')
+
         # if fails then must be standalone and schema is provided
+        if not matching_subprograms:
+            subprogram_sql = f'''
+            SELECT owner, object_id, subprogram_id
+              FROM all_procedures
+             WHERE owner = UPPER(:owner)
+               AND object_name = UPPER(:name)
+               AND object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
+            '''
+            owner, object_name = attributes
+            binds = {'owner': owner, 'name': object_name}
+            matching_subprograms = list(plsql.query(subprogram_sql, binds).all)
+            if len(matching_subprograms) > 1:
+                raise NotImplementedError('Can not resolve to single subprogram!')
+
+            if not matching_subprograms:
+                raise AttributeError('No such subprogram exists!')
     else:
         subprogram_sql = f'''
         SELECT owner, object_id, subprogram_id
@@ -140,7 +171,7 @@ def resolve_subprogram(attributes, parameters, plsql):
          WHERE object_name = UPPER(:name)
            AND object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
         '''
-        subprogram = attributes[0]
+        subprogram, = attributes
 
         matching_subprograms = list(plsql.query(subprogram_sql, {'name': subprogram}).all)
 
@@ -150,7 +181,7 @@ def resolve_subprogram(attributes, parameters, plsql):
         if len(matching_subprograms) > 1:
             raise NotImplementedError('Can not resolve to single subprogram!')
 
-        return matching_subprograms[0]
+    return matching_subprograms[0]
 
 
 class AttributeWalker:
