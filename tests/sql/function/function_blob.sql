@@ -1,4 +1,4 @@
-create or replace FUNCTION function_blob(p_blob IN OUT BLOB)
+CREATE OR REPLACE FUNCTION function_blob(p_blob IN OUT BLOB)
 RETURN BLOB IS
     v_blob BLOB;
 BEGIN
