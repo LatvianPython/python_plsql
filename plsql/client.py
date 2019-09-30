@@ -1,3 +1,4 @@
+import datetime
 from collections import namedtuple
 from operator import itemgetter
 
@@ -25,11 +26,14 @@ SELECT owner, NVL(procedure_name, object_name) object_name, object_type
    AND subprogram_id = :subprogram_id
    AND object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
 '''
-
+    # fixme: not gonna scale with user defined types in database
     argument_mapping = {
         'VARCHAR2': str,
         'INTEGER': int,
-        'NUMBER': float
+        'NUMBER': float,
+        'DATE': datetime.datetime,
+        'CLOB': oracle.CLOB,
+        'BLOB': oracle.BLOB
     }
 
     def __init__(self, plsql, name, owner, object_id, subprogram_id):
@@ -72,9 +76,15 @@ SELECT owner, NVL(procedure_name, object_name) object_name, object_type
                     pass
                 kwargs[name] = parameter
 
+            def pythonize_value(value):
+                try:
+                    return value.read()
+                except AttributeError:
+                    return value
+
             def parse_in_out(parameters):
                 return {
-                    param_name: param_value.getvalue()
+                    param_name: pythonize_value(param_value.getvalue())
                     for param_name, param_value
                     in parameters
                 }
@@ -89,6 +99,8 @@ SELECT owner, NVL(procedure_name, object_name) object_name, object_type
 
             if object_type == FUNCTION:
                 result = cursor.callfunc(self.name, self.return_type, keywordParameters=kwargs)
+
+                result = pythonize_value(result)
 
                 if in_out_parameters:
                     return result, parse_in_out(in_out_parameters)
@@ -177,7 +189,6 @@ class AttributeWalker:
         return self
 
     def __call__(self, **parameters):
-        # todo: potential
         found_subprogram = resolve_subprogram(attributes=self.attributes, parameters=parameters, plsql=self.plsql)
         subprogram = Subprogram(self.plsql, '.'.join(self.attributes), **found_subprogram._asdict())
         return subprogram(**parameters)
