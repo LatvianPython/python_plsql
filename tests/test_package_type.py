@@ -1,4 +1,4 @@
-from itertools import accumulate
+from functools import reduce
 from operator import mul
 
 
@@ -19,4 +19,4 @@ def test_rec_type(plsql):
 
     result = plsql.test_package.compute_rec_product(pr_rec=record)
 
-    assert result == accumulate(record.values(), mul)
+    assert result == reduce(mul, record.values())

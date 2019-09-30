@@ -11,7 +11,7 @@ PACKAGE = 'PACKAGE'
 
 class Subprogram:
     argument_sql = f'''
-SELECT argument_name, data_type, defaulted, in_out
+SELECT argument_name, data_type, defaulted, in_out, type_owner || '.' || type_name || '.' || type_subname extended_type
   FROM all_arguments
  WHERE owner = UPPER(:owner)
    AND object_name = :object_name
@@ -76,17 +76,9 @@ SELECT owner, NVL(procedure_name, object_name) object_name, object_type
                     pass
                 kwargs[name] = parameter
 
-            def pythonize_value(value):
-                # todo: should leave clobs and blobs as is, file like objects, they can be quite big, so user will
-                #  know best himself how to read them, not sure whats best
-                # try:
-                #     return value.read()
-                # except AttributeError:
-                return value
-
             def parse_in_out(parameters):
                 return {
-                    param_name: pythonize_value(param_value.getvalue())
+                    param_name: param_value.getvalue()
                     for param_name, param_value
                     in parameters
                 }
@@ -99,10 +91,27 @@ SELECT owner, NVL(procedure_name, object_name) object_name, object_type
                 else:
                     object_type = PROCEDURE
 
+            def oracle_record(argument, mapping):
+                record_type = self.plsql.connection.gettype(argument.extended_type)
+                record = record_type.newobject()
+
+                for key, value in mapping.items():
+                    setattr(record, key.upper(), value)
+                return record
+
+            rec_types = {
+                argument.argument_name.lower(): oracle_record(argument, kwargs[argument.argument_name.lower()])
+                for argument
+                in self.arguments
+                if 'IN' in argument.in_out
+                if argument.data_type == 'PL/SQL RECORD'
+            }
+
+            for argument_name, argument_value in rec_types.items():
+                kwargs[argument_name] = argument_value
+
             if object_type == FUNCTION:
                 result = cursor.callfunc(self.name, self.return_type, keywordParameters=kwargs)
-
-                result = pythonize_value(result)
 
                 if in_out_parameters:
                     return result, parse_in_out(in_out_parameters)
