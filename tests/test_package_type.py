@@ -24,9 +24,10 @@ def test_rec_type(plsql):
 
 def test_rec_table(plsql):
     record = {
-        f'int_{i}': i
-        for i
-        in range(1, 5)
+        'int_1': 1,
+        'int_2': 2,
+        'int_3': 3,
+        'int_4': 4
     }
 
     table = [record] * 5

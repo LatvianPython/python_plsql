@@ -157,8 +157,23 @@ def resolve_subprogram(attributes, parameters, plsql):
         raise ValueError('Attribute access is too deep, maximum of 3 allowed! (schema, package, subprogram)')
 
     if attribute_len == 3:
-        # schema, package, subprogram = attributes
-        raise NotImplementedError('Can not access with full path!')
+        schema, package, subprogram = attributes
+        subprogram_sql = f'''
+        SELECT owner, object_id, subprogram_id
+          FROM all_procedures
+         WHERE owner = UPPER(:owner)
+           AND object_name = UPPER(:name)
+           AND procedure_name = UPPER(:procedure_name)
+           AND object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
+        '''
+
+        binds = {'owner': schema, 'name': package, 'procedure_name': subprogram}
+        matching_subprograms = list(plsql.query(subprogram_sql, binds).all)
+        if len(matching_subprograms) > 1:
+            raise NotImplementedError('Can not resolve to single subprogram!')
+
+        if not matching_subprograms:
+            raise AttributeError('No such subprogram exists!')
     elif attribute_len == 2:
         # todo: at some point use to refine search due to possibility of overloaded subprograms in package
         _ = parameters
