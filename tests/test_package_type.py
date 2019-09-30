@@ -12,9 +12,10 @@ def test_table_type(plsql):
 
 def test_rec_type(plsql):
     record = {
-        f'int_{i}': i
-        for i
-        in range(1, 5)
+        'int_1': 1,
+        'int_2': 2,
+        'int_3': 3,
+        'int_4': 4
     }
 
     result = plsql.test_package.compute_rec_product(pr_rec=record)
@@ -30,8 +31,8 @@ def test_rec_table(plsql):
         'int_4': 4
     }
 
-    table = [record] * 5
+    table = [record] * 100
 
     result = plsql.test_package.compute_rec_table(pt_rec=table)
 
-    assert result == reduce(mul, record.values()) * 5
+    assert result == reduce(mul, record.values()) * 100
