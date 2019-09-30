@@ -5,6 +5,7 @@ CREATE OR REPLACE PACKAGE BODY test_package AS
         NULL;
     END simple_procedure;
 
+
     FUNCTION simple_function(p_int IN INTEGER)
         RETURN INTEGER IS
     BEGIN
@@ -17,7 +18,7 @@ CREATE OR REPLACE PACKAGE BODY test_package AS
         v_result INTEGER := 0;
     BEGIN
 
-        FOR i IN 1 .. pt_stringlist.COUNT LOOP
+        FOR i IN pt_stringlist.FIRST .. pt_stringlist.LAST LOOP
             v_result := v_result + LENGTH(pt_stringlist(i));
         END LOOP;
 
@@ -25,11 +26,24 @@ CREATE OR REPLACE PACKAGE BODY test_package AS
     END compute_agg_length;
 
 
-
     FUNCTION compute_rec_product(pr_rec IN tr_rec)
         RETURN INTEGER IS
     BEGIN
         RETURN pr_rec.int_1 * pr_rec.int_2 * pr_rec.int_3 * pr_rec.int_4;
     END compute_rec_product;
+
+
+    FUNCTION compute_rec_table(pt_rec IN tt_rec)
+        RETURN INTEGER IS
+        v_result INTEGER := 0;
+    BEGIN
+        FOR i IN pt_rec.FIRST .. pt_rec.LAST LOOP
+            v_result := v_result + (pt_rec(i).int_1 * pt_rec(i).int_2 * pt_rec(i).int_3 * pt_rec(i).int_4);
+        END LOOP;
+        RETURN v_result;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RETURN pt_rec.COUNT;
+    END compute_rec_table;
 
 END test_package;

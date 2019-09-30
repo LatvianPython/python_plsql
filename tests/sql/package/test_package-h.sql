@@ -1,13 +1,14 @@
 CREATE OR REPLACE PACKAGE test_package AS
     TYPE tt_stringlist IS TABLE OF VARCHAR2(100) INDEX BY BINARY_INTEGER;
 
-
     TYPE tr_rec IS RECORD (
         int_1 INTEGER,
         int_2 INTEGER,
         int_3 INTEGER,
         int_4 INTEGER
         );
+
+    TYPE tt_rec IS TABLE OF tr_rec INDEX BY BINARY_INTEGER;
 
     PROCEDURE simple_procedure;
 
@@ -18,6 +19,9 @@ CREATE OR REPLACE PACKAGE test_package AS
         RETURN INTEGER;
 
     FUNCTION compute_rec_product(pr_rec IN tr_rec)
+        RETURN INTEGER;
+
+    FUNCTION compute_rec_table(pt_rec IN tt_rec)
         RETURN INTEGER;
 
 END test_package;

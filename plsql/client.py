@@ -91,8 +91,9 @@ SELECT owner, NVL(procedure_name, object_name) object_name, object_type
                 else:
                     object_type = PROCEDURE
 
-            def oracle_record(argument, mapping):
-                record_type = self.plsql.connection.gettype(argument.extended_type)
+            def oracle_record(argument, mapping, record_type=None):
+                if record_type is None:
+                    record_type = self.plsql.connection.gettype(argument.extended_type.upper())
                 record = record_type.newobject()
 
                 for key, value in mapping.items():
@@ -108,6 +109,29 @@ SELECT owner, NVL(procedure_name, object_name) object_name, object_type
             }
 
             for argument_name, argument_value in rec_types.items():
+                kwargs[argument_name] = argument_value
+
+            def oracle_table(argument, list_of_recs):
+                table_type = self.plsql.connection.gettype(argument.extended_type)
+                table = table_type.newobject()
+
+                if table_type.elementType is not None:
+                    for mapping in list_of_recs:
+                        rec = oracle_record(None, mapping, table_type.elementType)
+                        table.append(rec)
+                    return table
+
+                return list_of_recs
+
+            table_types = {
+                argument.argument_name.lower(): oracle_table(argument, kwargs[argument.argument_name.lower()])
+                for argument
+                in self.arguments
+                if 'IN' in argument.in_out
+                if argument.data_type == 'PL/SQL TABLE'
+            }
+
+            for argument_name, argument_value in table_types.items():
                 kwargs[argument_name] = argument_value
 
             if object_type == FUNCTION:
