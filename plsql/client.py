@@ -77,10 +77,12 @@ SELECT owner, NVL(procedure_name, object_name) object_name, object_type
                 kwargs[name] = parameter
 
             def pythonize_value(value):
-                try:
-                    return value.read()
-                except AttributeError:
-                    return value
+                # todo: should leave clobs and blobs as is, file like objects, they can be quite big, so user will
+                #  know best himself how to read them, not sure whats best
+                # try:
+                #     return value.read()
+                # except AttributeError:
+                return value
 
             def parse_in_out(parameters):
                 return {
