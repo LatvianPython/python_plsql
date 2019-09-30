@@ -46,7 +46,7 @@ SELECT owner, NVL(procedure_name, object_name) object_name, object_type
 
         binds = {'owner': self.owner, 'object_name': self.definition.object_name,
                  'object_id': self.object_id, 'subprogram_id': self.subprogram_id}
-        self.arguments = list(plsql.query(sql_query=self.argument_sql, bind_variables=binds).all)
+        self.arguments = list(plsql.query(sql_query=self.argument_sql, bind_variables=binds))
 
         try:
             self.return_type = next(
@@ -168,7 +168,7 @@ def resolve_subprogram(attributes, parameters, plsql):
         '''
 
         binds = {'owner': schema, 'name': package, 'procedure_name': subprogram}
-        matching_subprograms = list(plsql.query(subprogram_sql, binds).all)
+        matching_subprograms = list(plsql.query(subprogram_sql, binds))
         if len(matching_subprograms) > 1:
             raise NotImplementedError('Can not resolve to single subprogram!')
 
@@ -188,7 +188,7 @@ def resolve_subprogram(attributes, parameters, plsql):
            AND object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
         '''
         binds = {'name': object_name, 'procedure_name': procedure_name}
-        matching_subprograms = list(plsql.query(subprogram_sql, binds).all)
+        matching_subprograms = list(plsql.query(subprogram_sql, binds))
 
         if len(matching_subprograms) > 1:
             raise NotImplementedError('Can not resolve to single subprogram!')
@@ -204,7 +204,7 @@ def resolve_subprogram(attributes, parameters, plsql):
             '''
             owner, object_name = attributes
             binds = {'owner': owner, 'name': object_name}
-            matching_subprograms = list(plsql.query(subprogram_sql, binds).all)
+            matching_subprograms = list(plsql.query(subprogram_sql, binds))
             if len(matching_subprograms) > 1:
                 raise NotImplementedError('Can not resolve to single subprogram!')
 
@@ -219,7 +219,7 @@ def resolve_subprogram(attributes, parameters, plsql):
         '''
         subprogram, = attributes
 
-        matching_subprograms = list(plsql.query(subprogram_sql, {'name': subprogram}).all)
+        matching_subprograms = list(plsql.query(subprogram_sql, {'name': subprogram}))
 
         if not matching_subprograms:
             raise AttributeError('No such subprogram exists!')
@@ -272,8 +272,7 @@ class Query:
         first_row = next(self.execute())
         return first_row
 
-    @property
-    def all(self):
+    def __iter__(self):
         return self.execute()
 
 

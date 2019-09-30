@@ -2,7 +2,7 @@ CREATE OR REPLACE FUNCTION function_clob(p_clob IN OUT CLOB)
 RETURN CLOB IS
     v_clob CLOB;
 BEGIN
-    FOR i IN 1 .. 10000 LOOP
+    FOR i IN 1 .. 1000 LOOP
         v_clob := v_clob || p_clob;
     END LOOP;
 

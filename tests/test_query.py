@@ -4,7 +4,7 @@ SELECT 1 AS test
   FROM dual'''
 
     assert plsql.query(query).first == 1
-    assert list(plsql.query(query).all) == [1]
+    assert list(plsql.query(query)) == [1]
 
 
 def test_dual_multiple_column(plsql):
@@ -13,7 +13,7 @@ SELECT 1 AS int, '2' AS string, 3.5 AS num FROM dual UNION ALL
 SELECT 1 AS int, '2' AS string, 3.5 AS num FROM dual
 '''
     first_row = plsql.query(query).first
-    all_rows = list(plsql.query(query).all)
+    all_rows = list(plsql.query(query))
 
     def assert_assumptions(single_row):
         assert len(single_row) == 3
@@ -40,7 +40,7 @@ CONNECT BY level <= 1000
 
     assert query_generator.first == 1
 
-    for row, expected in zip(query_generator.all, range(1, 1000)):
+    for row, expected in zip(query_generator, range(1, 1000)):
         assert row == expected
 
-    assert len(list(query_generator.all)) == 1000
+    assert len(list(query_generator)) == 1000

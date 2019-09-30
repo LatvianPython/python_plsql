@@ -3,7 +3,7 @@ RETURN BLOB IS
     v_blob BLOB;
 BEGIN
     dbms_lob.createtemporary(v_blob, TRUE);
-    FOR i IN 1 .. 10000 LOOP
+    FOR i IN 1 .. 1000 LOOP
         DBMS_LOB.APPEND(v_blob, p_blob);
     END LOOP;
 

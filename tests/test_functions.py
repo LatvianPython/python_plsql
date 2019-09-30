@@ -44,7 +44,7 @@ def test_function_clob(plsql):
     result, in_out = plsql.function_clob(p_clob=clob)
     result, in_out['p_clob'] = result.read(), in_out['p_clob'].read()
 
-    assert len(result) == len(in_out['p_clob']) == 10000
+    assert len(result) == len(in_out['p_clob']) == 1000
     assert type(clob) == type(result) == type(in_out['p_clob'])
 
 
@@ -53,5 +53,5 @@ def test_function_blob(plsql):
     result, in_out = plsql.function_blob(p_blob=blob)
     result, in_out['p_blob'] = result.read(), in_out['p_blob'].read()
 
-    assert len(result) == len(in_out['p_blob']) == 10000
+    assert len(result) == len(in_out['p_blob']) == 1000
     assert type(blob) == type(result) == type(in_out['p_blob'])
