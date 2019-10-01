@@ -1,5 +1,6 @@
 import datetime
 from collections import namedtuple
+from itertools import starmap, chain
 from operator import itemgetter
 
 import cx_Oracle as oracle
@@ -18,15 +19,8 @@ SELECT argument_name, data_type, defaulted, in_out, type_owner || '.' || type_na
    AND object_id = :object_id 
    AND subprogram_id = :subprogram_id
 '''
-    subprogram_sql = f'''
-SELECT owner, NVL(procedure_name, object_name) object_name, object_type
-  FROM all_procedures
- WHERE owner = UPPER(:owner)
-   AND object_id = :object_id 
-   AND subprogram_id = :subprogram_id
-   AND object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
-'''
-    # fixme: not gonna scale with user defined types in database
+
+    # fixme: not gonna scale with other types
     argument_mapping = {
         'VARCHAR2': str,
         'INTEGER': int,
@@ -36,16 +30,13 @@ SELECT owner, NVL(procedure_name, object_name) object_name, object_type
         'BLOB': oracle.BLOB
     }
 
-    def __init__(self, plsql, name, owner, object_id, subprogram_id):
-        self.owner, self.object_id, self.subprogram_id = owner, object_id, subprogram_id
+    def __init__(self, plsql, name, definition):
         self.plsql = plsql
         self.name = name
+        self.definition = definition
 
-        binds = {'owner': self.owner, 'object_id': self.object_id, 'subprogram_id': self.subprogram_id}
-        self.definition = plsql.query(sql_query=self.subprogram_sql, binds=binds).first
-
-        binds = {'owner': self.owner, 'object_name': self.definition.object_name,
-                 'object_id': self.object_id, 'subprogram_id': self.subprogram_id}
+        binds = {'owner': self.definition.owner, 'object_name': self.definition.object_name,
+                 'object_id': self.definition.object_id, 'subprogram_id': self.definition.subprogram_id}
         self.arguments = list(plsql.query(sql_query=self.argument_sql, binds=binds))
 
         try:
@@ -100,17 +91,6 @@ SELECT owner, NVL(procedure_name, object_name) object_name, object_type
                     setattr(record, key.upper(), value)
                 return record
 
-            rec_types = {
-                argument.argument_name.lower(): oracle_record(argument, kwargs[argument.argument_name.lower()])
-                for argument
-                in self.arguments
-                if 'IN' in argument.in_out
-                if argument.data_type == 'PL/SQL RECORD'
-            }
-
-            for argument_name, argument_value in rec_types.items():
-                kwargs[argument_name] = argument_value
-
             def oracle_table(argument, list_of_recs):
                 table_type = self.plsql.connection.gettype(argument.extended_type)
                 table = table_type.newobject()
@@ -123,15 +103,22 @@ SELECT owner, NVL(procedure_name, object_name) object_name, object_type
 
                 return list_of_recs
 
-            table_types = {
-                argument.argument_name.lower(): oracle_table(argument, kwargs[argument.argument_name.lower()])
-                for argument
-                in self.arguments
-                if 'IN' in argument.in_out
-                if argument.data_type == 'PL/SQL TABLE'
-            }
+            def translate_types(conversion_func, data_type):
+                return {
+                    argument.argument_name.lower(): conversion_func(argument, kwargs[argument.argument_name.lower()])
+                    for argument
+                    in self.arguments
+                    if 'IN' in argument.in_out
+                    if argument.data_type == data_type
+                }
 
-            for argument_name, argument_value in table_types.items():
+            translated_types = chain.from_iterable(
+                translate_types(func, data_type).items()
+                for func, data_type
+                in [(oracle_record, 'PL/SQL RECORD'), (oracle_table, 'PL/SQL TABLE')]
+            )
+
+            for argument_name, argument_value in translated_types:
                 kwargs[argument_name] = argument_value
 
             if object_type == FUNCTION:
@@ -153,7 +140,7 @@ def retrieve_subprograms(attributes, plsql):
     attribute_len = len(attributes)
 
     base_query = '''
-    SELECT owner, object_id, subprogram_id
+    SELECT owner, object_id, subprogram_id, NVL(procedure_name, object_name) object_name, object_type
       FROM all_procedures
      WHERE object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') AND {extra_where_predicates}
     '''
@@ -179,17 +166,44 @@ def retrieve_subprograms(attributes, plsql):
         return query_subprograms(object_name=object_name)
 
 
+def match_parameters(subprograms, parameters, plsql):
+    # fixme: this sql is essentially the same as in when building the Subprogram
+    argument_sql = f'''
+SELECT argument_name, data_type, defaulted, in_out, type_owner || '.' || type_name || '.' || type_subname extended_type
+  FROM all_arguments
+ WHERE owner = UPPER(:owner)
+   AND object_name = :object_name
+   AND object_id = :object_id 
+   AND subprogram_id = :subprogram_id
+'''
+
+    for subprogram in subprograms:
+        binds = {'owner': subprogram.owner, 'object_name': subprogram.object_name,
+                 'object_id': subprogram.object_id, 'subprogram_id': subprogram.subprogram_id}
+
+        arguments = list(argument.argument_name.lower()
+                         for argument
+                         in plsql.query(sql_query=argument_sql, binds=binds)
+                         if argument.argument_name is not None)
+
+        if set(arguments) == set(parameters.keys()):
+            return subprogram
+
+
 def resolve_subprogram(attributes, parameters, plsql):
     assert attributes, 'Attributes should not be empty!'
-    _ = parameters
 
     matching_subprograms = retrieve_subprograms(attributes, plsql)
 
-    if len(matching_subprograms) > 1:
-        raise NotImplementedError('Can not resolve to single subprogram!')
-
     if not matching_subprograms:
         raise AttributeError('No such subprogram exists!')
+
+    if len(matching_subprograms) > 1:
+        matched = match_parameters(matching_subprograms, parameters, plsql)
+
+        if matched:
+            return matched
+        raise NotImplementedError('Can not resolve to single subprogram!')
 
     return matching_subprograms[0]
 
@@ -207,7 +221,7 @@ class AttributeWalker:
 
     def __call__(self, **parameters):
         found_subprogram = resolve_subprogram(attributes=self.attributes, parameters=parameters, plsql=self.plsql)
-        subprogram = Subprogram(self.plsql, '.'.join(self.attributes), **found_subprogram._asdict())
+        subprogram = Subprogram(self.plsql, '.'.join(self.attributes), found_subprogram)
         return subprogram(**parameters)
 
 
@@ -224,15 +238,13 @@ class Query:
                 cursor.execute(self.query)
 
             if len(cursor.description) > 1:
-                record_type = namedtuple('Result', [column[0].lower() for column in cursor.description])
-
-                def result(rec):
-                    return record_type(*rec)
+                record_type = namedtuple('Record', (column[0].lower() for column in cursor.description))
+                records = starmap(record_type, cursor)
             else:
-                result = itemgetter(0)
+                records = map(itemgetter(0), cursor)
 
-            for record in cursor:
-                yield result(record)
+            for record in records:
+                yield record
 
     @property
     def first(self):
