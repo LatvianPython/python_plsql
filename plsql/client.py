@@ -42,11 +42,11 @@ SELECT owner, NVL(procedure_name, object_name) object_name, object_type
         self.name = name
 
         binds = {'owner': self.owner, 'object_id': self.object_id, 'subprogram_id': self.subprogram_id}
-        self.definition = plsql.query(sql_query=self.subprogram_sql, bind_variables=binds).first
+        self.definition = plsql.query(sql_query=self.subprogram_sql, binds=binds).first
 
         binds = {'owner': self.owner, 'object_name': self.definition.object_name,
                  'object_id': self.object_id, 'subprogram_id': self.subprogram_id}
-        self.arguments = list(plsql.query(sql_query=self.argument_sql, bind_variables=binds))
+        self.arguments = list(plsql.query(sql_query=self.argument_sql, binds=binds))
 
         try:
             self.return_type = next(
@@ -149,83 +149,47 @@ SELECT owner, NVL(procedure_name, object_name) object_name, object_type
                 raise NotImplementedError(f'Unrecognized object_type "{object_type}"!')
 
 
-def resolve_subprogram(attributes, parameters, plsql):
-    assert attributes, 'Attributes should not be empty!'
-
+def retrieve_subprograms(attributes, plsql):
     attribute_len = len(attributes)
-    if attribute_len > 3:
-        raise ValueError('Attribute access is too deep, maximum of 3 allowed! (schema, package, subprogram)')
+
+    base_query = '''
+    SELECT owner, object_id, subprogram_id
+      FROM all_procedures
+     WHERE object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') AND {extra_where_predicates}
+    '''
+
+    def query_subprograms(**kwargs):
+        extra_where_predicates = (f'{key} = UPPER(:{key})' for key in kwargs.keys())
+        query_sql = base_query.format(extra_where_predicates=' AND '.join(extra_where_predicates))
+        return list(plsql.query(query_sql, binds=kwargs))
 
     if attribute_len == 3:
-        schema, package, subprogram = attributes
-        subprogram_sql = f'''
-        SELECT owner, object_id, subprogram_id
-          FROM all_procedures
-         WHERE owner = UPPER(:owner)
-           AND object_name = UPPER(:name)
-           AND procedure_name = UPPER(:procedure_name)
-           AND object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
-        '''
-
-        binds = {'owner': schema, 'name': package, 'procedure_name': subprogram}
-        matching_subprograms = list(plsql.query(subprogram_sql, binds))
-        if len(matching_subprograms) > 1:
-            raise NotImplementedError('Can not resolve to single subprogram!')
-
-        if not matching_subprograms:
-            raise AttributeError('No such subprogram exists!')
+        owner, object_name, procedure_name = attributes
+        return query_subprograms(owner=owner, object_name=object_name, procedure_name=procedure_name)
     elif attribute_len == 2:
-        # todo: at some point use to refine search due to possibility of overloaded subprograms in package
-        _ = parameters
-
-        # search for subprogram assuming package name is provided
         object_name, procedure_name = attributes
-        subprogram_sql = f'''
-        SELECT owner, object_id, subprogram_id
-          FROM all_procedures
-         WHERE object_name = UPPER(:name)
-           AND procedure_name = UPPER(:procedure_name)
-           AND object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
-        '''
-        binds = {'name': object_name, 'procedure_name': procedure_name}
-        matching_subprograms = list(plsql.query(subprogram_sql, binds))
 
-        if len(matching_subprograms) > 1:
-            raise NotImplementedError('Can not resolve to single subprogram!')
+        matching_subprograms = query_subprograms(object_name=object_name, procedure_name=procedure_name)
 
-        # if fails then must be standalone and schema is provided
         if not matching_subprograms:
-            subprogram_sql = f'''
-            SELECT owner, object_id, subprogram_id
-              FROM all_procedures
-             WHERE owner = UPPER(:owner)
-               AND object_name = UPPER(:name)
-               AND object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
-            '''
-            owner, object_name = attributes
-            binds = {'owner': owner, 'name': object_name}
-            matching_subprograms = list(plsql.query(subprogram_sql, binds))
-            if len(matching_subprograms) > 1:
-                raise NotImplementedError('Can not resolve to single subprogram!')
-
-            if not matching_subprograms:
-                raise AttributeError('No such subprogram exists!')
+            return query_subprograms(owner=object_name, object_name=procedure_name)
+        return matching_subprograms
     else:
-        subprogram_sql = f'''
-        SELECT owner, object_id, subprogram_id
-          FROM all_procedures
-         WHERE object_name = UPPER(:name)
-           AND object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
-        '''
-        subprogram, = attributes
+        object_name, = attributes
+        return query_subprograms(object_name=object_name)
 
-        matching_subprograms = list(plsql.query(subprogram_sql, {'name': subprogram}))
 
-        if not matching_subprograms:
-            raise AttributeError('No such subprogram exists!')
+def resolve_subprogram(attributes, parameters, plsql):
+    assert attributes, 'Attributes should not be empty!'
+    _ = parameters
 
-        if len(matching_subprograms) > 1:
-            raise NotImplementedError('Can not resolve to single subprogram!')
+    matching_subprograms = retrieve_subprograms(attributes, plsql)
+
+    if len(matching_subprograms) > 1:
+        raise NotImplementedError('Can not resolve to single subprogram!')
+
+    if not matching_subprograms:
+        raise AttributeError('No such subprogram exists!')
 
     return matching_subprograms[0]
 
@@ -235,6 +199,9 @@ class AttributeWalker:
         self.plsql, self.attributes = plsql, [attr]
 
     def __getattr__(self, item):
+        if len(self.attributes) >= 3:
+            raise ValueError('Attribute access is too deep, maximum of 3 allowed! (schema, package, subprogram)')
+
         self.attributes.append(item)
         return self
 
@@ -280,14 +247,15 @@ class Database:
 
     def __init__(self, user, password, host, port, service_name, encoding):
         dsn = oracle.makedsn(host, port, service_name=service_name)
-        self.connection = oracle.connect(user=user, password=password, dsn=dsn, encoding=encoding, nencoding=encoding)
+        self.connection = oracle.connect(user=user, password=password, dsn=dsn, encoding=encoding,
+                                         nencoding=encoding)
 
     def execute_immediate(self, dynamic_string):
         with self.connection.cursor() as cursor:
             cursor.execute(dynamic_string)
 
-    def query(self, sql_query, bind_variables=None):
-        return Query(self.connection, sql_query, bind_variables)
+    def query(self, sql_query, binds=None):
+        return Query(self.connection, sql_query, binds)
 
     def __getattr__(self, item):
         return AttributeWalker(self, item)
