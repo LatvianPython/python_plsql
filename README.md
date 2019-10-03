@@ -11,6 +11,7 @@ What you need is just the client.py file, the cx_Oracle package (refer to it's d
 
 Hopefully if all goes well you will be able to call most of the PL/SQL code from Python
 ```Python
+>>>plsql = Database(...):
 >>>plsql.simple_function(p_int=5)
 10
 ```
