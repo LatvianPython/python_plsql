@@ -1,5 +1,26 @@
 CREATE OR REPLACE PACKAGE BODY test_package AS
 
+    FUNCTION return_record
+        RETURN tr_rec IS
+        vr_rec tr_rec;
+    BEGIN
+        vr_rec.int_1 := 1;
+        vr_rec.int_2 := 2;
+        vr_rec.int_3 := 3;
+        vr_rec.int_4 := 4;
+        RETURN vr_rec;
+    END return_record;
+
+    FUNCTION return_table_of_recs
+        RETURN tt_rec IS
+        vt_rec tt_rec;
+    BEGIN
+        FOR v_i IN 1 .. 2 LOOP
+            vt_rec(v_i) := return_record;
+        END LOOP;
+        RETURN vt_rec;
+    END;
+
     PROCEDURE simple_procedure IS
     BEGIN
         NULL;

@@ -10,6 +10,12 @@ CREATE OR REPLACE PACKAGE test_package AS
 
     TYPE tt_rec IS TABLE OF tr_rec INDEX BY BINARY_INTEGER;
 
+    FUNCTION return_record
+        RETURN tr_rec;
+
+    FUNCTION return_table_of_recs
+        RETURN tt_rec;
+
     PROCEDURE simple_procedure;
 
     FUNCTION simple_function(p_int IN INTEGER)
