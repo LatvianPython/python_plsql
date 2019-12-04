@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime
 from collections import namedtuple
 from itertools import starmap, chain
@@ -10,9 +12,53 @@ PROCEDURE = "PROCEDURE"
 PACKAGE = "PACKAGE"
 
 
+def parse_in_out(parameters):
+    return {
+        param_name: param_value.getvalue() for param_name, param_value in parameters
+    }
+
+
+def oracle_plsql_record(connection, argument, mapping, record_type=None):
+    if record_type is None:
+        record_type = connection.gettype(argument.extended_type.upper())
+    record = record_type.newobject()
+
+    for key, value in mapping.items():
+        setattr(record, key.upper(), value)
+    return record
+
+
+def oracle_plsql_table(connection, argument, mapping_of_recs):
+    table_type = connection.gettype(argument.extended_type)
+    table = table_type.newobject()
+
+    if table_type.elementType is not None:
+        for key, value in mapping_of_recs.items():
+            rec = oracle_plsql_record(connection, None, value, table_type.elementType)
+            table.setelement(key, rec)
+        return table
+
+    return mapping_of_recs
+
+
+def translate_types(connection, arguments, parameters, conversion_func, data_type):
+    return {
+        argument.argument_name.lower(): conversion_func(
+            connection, argument, parameters[argument.argument_name.lower()]
+        )
+        for argument in arguments
+        if "IN" in argument.in_out
+        if argument.data_type == data_type
+    }
+
+
 class Subprogram:
-    argument_sql = f"""
-SELECT argument_name, data_type, defaulted, in_out, type_owner || '.' || type_name || '.' || type_subname extended_type
+    argument_sql = """
+SELECT argument_name, 
+       data_type,
+       defaulted, 
+       in_out, 
+       type_owner || '.' || type_name || '.' || type_subname extended_type
   FROM all_arguments
  WHERE owner = UPPER(:owner)
    AND object_name = :object_name
@@ -79,12 +125,6 @@ SELECT argument_name, data_type, defaulted, in_out, type_owner || '.' || type_na
                     pass
                 kwargs[name] = parameter
 
-            def parse_in_out(parameters):
-                return {
-                    param_name: param_value.getvalue()
-                    for param_name, param_value in parameters
-                }
-
             object_type = self.definition.object_type
 
             if object_type == PACKAGE:
@@ -93,44 +133,13 @@ SELECT argument_name, data_type, defaulted, in_out, type_owner || '.' || type_na
                 else:
                     object_type = PROCEDURE
 
-            def oracle_record(argument, mapping, record_type=None):
-                if record_type is None:
-                    record_type = self.plsql.connection.gettype(
-                        argument.extended_type.upper()
-                    )
-                record = record_type.newobject()
-
-                for key, value in mapping.items():
-                    setattr(record, key.upper(), value)
-                return record
-
-            def oracle_table(argument, list_of_recs):
-                table_type = self.plsql.connection.gettype(argument.extended_type)
-                table = table_type.newobject()
-
-                if table_type.elementType is not None:
-                    for mapping in list_of_recs:
-                        rec = oracle_record(None, mapping, table_type.elementType)
-                        table.append(rec)
-                    return table
-
-                return list_of_recs
-
-            def translate_types(conversion_func, data_type):
-                return {
-                    argument.argument_name.lower(): conversion_func(
-                        argument, kwargs[argument.argument_name.lower()]
-                    )
-                    for argument in self.arguments
-                    if "IN" in argument.in_out
-                    if argument.data_type == data_type
-                }
-
             translated_types = chain.from_iterable(
-                translate_types(func, data_type).items()
+                translate_types(
+                    self.plsql.connection, self.arguments, kwargs, func, data_type
+                ).items()
                 for func, data_type in [
-                    (oracle_record, "PL/SQL RECORD"),
-                    (oracle_table, "PL/SQL TABLE"),
+                    (oracle_plsql_record, "PL/SQL RECORD"),
+                    (oracle_plsql_table, "PL/SQL TABLE"),
                 ]
             )
 
@@ -152,6 +161,8 @@ SELECT argument_name, data_type, defaulted, in_out, type_owner || '.' || type_na
                             attributes = result_list[0].type.attributes
                         except IndexError:
                             result = []
+                        except AttributeError:
+                            result = result_list
                         else:
                             result = [
                                 {
@@ -167,7 +178,6 @@ SELECT argument_name, data_type, defaulted, in_out, type_owner || '.' || type_na
                             attribute.name.lower(): getattr(result, attribute.name)
                             for attribute in attributes
                         }
-
                 except AttributeError:
                     pass
 
@@ -187,10 +197,14 @@ def retrieve_subprograms(attributes, plsql):
     attribute_len = len(attributes)
 
     base_query = """
-    SELECT owner, object_id, subprogram_id, NVL(procedure_name, object_name) object_name, object_type
-      FROM all_procedures
-     WHERE object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') AND {extra_where_predicates}
-    """
+SELECT owner, 
+       object_id, 
+       subprogram_id, 
+       NVL(procedure_name, object_name) object_name, 
+       object_type
+  FROM all_procedures
+ WHERE object_type IN ('FUNCTION', 'PROCEDURE', 'PACKAGE') AND {extra_where_predicates}
+"""
 
     def query_subprograms(**kwargs):
         extra_where_predicates = (f"{key} = UPPER(:{key})" for key in kwargs.keys())
@@ -221,8 +235,12 @@ def retrieve_subprograms(attributes, plsql):
 
 def match_parameters(subprograms, parameters, plsql):
     # fixme: this sql is essentially the same as in when building the Subprogram
-    argument_sql = f"""
-SELECT argument_name, data_type, defaulted, in_out, type_owner || '.' || type_name || '.' || type_subname extended_type
+    argument_sql = """
+SELECT argument_name, 
+       data_type, 
+       defaulted, 
+       in_out, 
+       type_owner || '.' || type_name || '.' || type_subname extended_type
   FROM all_arguments
  WHERE owner = UPPER(:owner)
    AND object_name = :object_name
@@ -319,17 +337,25 @@ class Query:
 
 
 class Database:
-    def __init__(self, user, password, host, port, service_name, encoding):
+    def __init__(
+        self,
+        user: str,
+        password: str,
+        host: str,
+        port: int,
+        service_name: str,
+        encoding: str,
+    ):
         dsn = oracle.makedsn(host, port, service_name=service_name)
         self.connection = oracle.connect(
             user=user, password=password, dsn=dsn, encoding=encoding, nencoding=encoding
         )
 
-    def execute_immediate(self, dynamic_string):
+    def execute_immediate(self, dynamic_string: str):
         with self.connection.cursor() as cursor:
             cursor.execute(dynamic_string)
 
-    def query(self, sql_query, binds=None):
+    def query(self, sql_query: str, binds=None):
         return Query(self.connection, sql_query, binds)
 
     def __getattr__(self, item):

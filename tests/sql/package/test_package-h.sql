@@ -1,6 +1,8 @@
 CREATE OR REPLACE PACKAGE test_package AS
     TYPE tt_stringlist IS TABLE OF VARCHAR2(100) INDEX BY BINARY_INTEGER;
 
+    TYPE tt_integers IS TABLE OF INTEGER;
+
     TYPE tr_rec IS RECORD (
         int_1 INTEGER,
         int_2 INTEGER,
@@ -9,6 +11,11 @@ CREATE OR REPLACE PACKAGE test_package AS
         );
 
     TYPE tt_rec IS TABLE OF tr_rec INDEX BY BINARY_INTEGER;
+
+    "g_int" INTEGER := 5;
+
+    FUNCTION out_integers(p_integer IN INTEGER)
+        RETURN tt_integers;
 
     FUNCTION return_record
         RETURN tr_rec;

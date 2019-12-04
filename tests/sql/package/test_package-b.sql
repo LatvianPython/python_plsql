@@ -1,5 +1,11 @@
 CREATE OR REPLACE PACKAGE BODY test_package AS
 
+    FUNCTION out_integers(p_integer IN INTEGER)
+        RETURN tt_integers IS
+    BEGIN
+        RETURN tt_integers(1, 2, p_integer);
+    END;
+
     FUNCTION return_record
         RETURN tr_rec IS
         vr_rec tr_rec;
@@ -59,7 +65,7 @@ CREATE OR REPLACE PACKAGE BODY test_package AS
         v_result INTEGER := 0;
     BEGIN
         FOR i IN pt_rec.FIRST .. pt_rec.LAST LOOP
-            v_result := v_result + (pt_rec(i).int_1 * pt_rec(i).int_2 * pt_rec(i).int_3 * pt_rec(i).int_4);
+            v_result := v_result + compute_rec_product(pr_rec => pt_rec(i));
         END LOOP;
         RETURN v_result;
     EXCEPTION

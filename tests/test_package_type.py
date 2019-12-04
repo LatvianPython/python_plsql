@@ -30,11 +30,15 @@ def test_rec_type(plsql):
     assert result == reduce(mul, record.values())
 
 
-def test_rec_table(plsql):
+def test_rec_plsql_table(plsql):
     record = {"int_1": 1, "int_2": 2, "int_3": 3, "int_4": 4}
 
-    table = [record] * 100
+    table = {i: record for i in range(1, 101)}
 
     result = plsql.test_package.compute_rec_table(pt_rec=table)
 
     assert result == reduce(mul, record.values()) * 100
+
+
+def test_nested_table(plsql):
+    assert plsql.test_package.out_integers(p_integer=5) == [1, 2, 5]
