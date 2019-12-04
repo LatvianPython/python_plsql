@@ -156,7 +156,6 @@ SELECT argument_name,
                 for func, data_type in [
                     (oracle_plsql_record, "PL/SQL RECORD"),
                     (oracle_plsql_table, "PL/SQL TABLE"),
-                    (oracle_table, "TABLE"),
                 ]
             )
 
@@ -355,10 +354,17 @@ class Query:
 
 class Database:
     def __init__(
-        self, user: str, password: str, sid: str, encoding: str,
+        self,
+        user: str,
+        password: str,
+        host: str,
+        port: int,
+        service_name: str,
+        encoding: str,
     ):
+        dsn = oracle.makedsn(host, port, service_name=service_name)
         self.connection = oracle.connect(
-            user, password, sid, encoding=encoding, nencoding=encoding
+            user=user, password=password, dsn=dsn, encoding=encoding, nencoding=encoding
         )
 
     def execute_immediate(self, dynamic_string: str):
