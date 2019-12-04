@@ -40,5 +40,9 @@ def test_rec_plsql_table(plsql):
     assert result == reduce(mul, record.values()) * 100
 
 
-def test_nested_table(plsql):
+def test_nested_table_as_out(plsql):
     assert plsql.test_package.out_integers(p_integer=5) == [1, 2, 5]
+
+
+def test_nested_table_as_in(plsql):
+    assert plsql.test_package.in_integers(pt_integers=[1, 2, 3]) == 6

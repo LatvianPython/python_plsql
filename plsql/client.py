@@ -41,6 +41,21 @@ def oracle_plsql_table(connection, argument, mapping_of_recs):
     return mapping_of_recs
 
 
+def oracle_table(connection, argument, list_of_recs):
+    table_type = connection.gettype(argument.extended_type)
+    table = table_type.newobject()
+
+    if table_type.elementType is not None:
+        for value in list_of_recs:
+            rec = oracle_plsql_record(connection, None, value, table_type.elementType)
+            table.append(rec)
+        return table
+    else:
+        for value in list_of_recs:
+            table.append(value)
+        return table
+
+
 def translate_types(connection, arguments, parameters, conversion_func, data_type):
     return {
         argument.argument_name.lower(): conversion_func(
@@ -64,6 +79,7 @@ SELECT argument_name,
    AND object_name = :object_name
    AND object_id = :object_id 
    AND subprogram_id = :subprogram_id
+   AND data_level = 0
 """
 
     # fixme: not gonna scale with other types
@@ -140,6 +156,7 @@ SELECT argument_name,
                 for func, data_type in [
                     (oracle_plsql_record, "PL/SQL RECORD"),
                     (oracle_plsql_table, "PL/SQL TABLE"),
+                    (oracle_table, "TABLE"),
                 ]
             )
 
@@ -338,17 +355,10 @@ class Query:
 
 class Database:
     def __init__(
-        self,
-        user: str,
-        password: str,
-        host: str,
-        port: int,
-        service_name: str,
-        encoding: str,
+        self, user: str, password: str, sid: str, encoding: str,
     ):
-        dsn = oracle.makedsn(host, port, service_name=service_name)
         self.connection = oracle.connect(
-            user=user, password=password, dsn=dsn, encoding=encoding, nencoding=encoding
+            user, password, sid, encoding=encoding, nencoding=encoding
         )
 
     def execute_immediate(self, dynamic_string: str):
