@@ -41,21 +41,6 @@ def oracle_plsql_table(connection, argument, mapping_of_recs):
     return mapping_of_recs
 
 
-def oracle_table(connection, argument, list_of_recs):
-    table_type = connection.gettype(argument.extended_type)
-    table = table_type.newobject()
-
-    if table_type.elementType is not None:
-        for value in list_of_recs:
-            rec = oracle_plsql_record(connection, None, value, table_type.elementType)
-            table.append(rec)
-        return table
-    else:
-        for value in list_of_recs:
-            table.append(value)
-        return table
-
-
 def translate_types(connection, arguments, parameters, conversion_func, data_type):
     return {
         argument.argument_name.lower(): conversion_func(
@@ -79,7 +64,6 @@ SELECT argument_name,
    AND object_name = :object_name
    AND object_id = :object_id 
    AND subprogram_id = :subprogram_id
-   AND data_level = 0
 """
 
     # fixme: not gonna scale with other types

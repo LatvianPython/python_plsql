@@ -6,16 +6,6 @@ CREATE OR REPLACE PACKAGE BODY test_package AS
         RETURN tt_integers(1, 2, p_integer);
     END;
 
-    FUNCTION in_integers(pt_integers IN tt_integers)
-        RETURN INTEGER IS
-        v_sum INTEGER;
-    BEGIN
-        SELECT SUM(column_value)
-          INTO v_sum
-          FROM TABLE(pt_integers);
-        RETURN v_sum;
-    END;
-
     FUNCTION return_record
         RETURN tr_rec IS
         vr_rec tr_rec;
