@@ -17,9 +17,6 @@ CREATE OR REPLACE PACKAGE test_package AS
     FUNCTION out_integers(p_integer IN INTEGER)
         RETURN tt_integers;
 
-    FUNCTION in_integers(pt_integers IN tt_integers)
-        RETURN INTEGER;
-
     FUNCTION return_record
         RETURN tr_rec;
 
