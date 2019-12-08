@@ -1,5 +1,0 @@
-CREATE OR REPLACE FUNCTION string_function(p_str IN VARCHAR2)
-    RETURN VARCHAR2 IS
-BEGIN
-    RETURN p_str || p_str;
-END;

@@ -1,0 +1,3 @@
+CREATE TABLE TEST_TABLE (
+    test_column VARCHAR2(20 BYTE)
+)
