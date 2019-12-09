@@ -1,0 +1,29 @@
+# 0   placeholder for procedures with no arguments
+# 1   VARCHAR, VARCHAR, STRING
+# 2   NUMBER, INTEGER, SMALLINT, REAL, FLOAT, DECIMAL
+# 3   BINARY_INTEGER, PLS_INTEGER, POSITIVE, NATURAL
+# 8   LONG
+# 11  ROWID
+# 12  DATE
+# 23  RAW
+# 24  LONG RAW
+# 58  OPAQUE TYPE
+# 96  CHAR (ANSI FIXED CHAR), CHARACTER
+# 106 MLSLABEL
+# 121 OBJECT
+# 122 NESTED TABLE
+# 123 VARRAY
+# 178 TIME
+# 179 TIME WITH TIME ZONE
+# 180 TIMESTAMP
+# 181 TIMESTAMP WITH TIME ZONE
+# 231 TIMESTAMP WITH LOCAL TIME ZONE
+# 250 PL/SQL RECORD
+# 251 PL/SQL TABLE
+# 252 PL/SQL BOOLEAN
+
+
+def test_describe_simple_function(plsql):
+    result = plsql._describe_procedure("test_synonym_procedure")
+
+    assert result is not None

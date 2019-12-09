@@ -41,11 +41,10 @@ def plsql():
         for file in directory.glob("*.sql")
     ]
 
+    drop_all_objects(database, objects)
     create_objects(database, objects)
 
     yield database
-
-    drop_all_objects(database, objects)
 
 
 def create_objects(plsql, objects):
@@ -56,7 +55,7 @@ def create_objects(plsql, objects):
             plsql.execute(sql_text)
         except DatabaseError as err:
             if err.args[0].code == 955:
-                pass
+                continue
             raise
 
 
@@ -69,4 +68,10 @@ def drop_all_objects(plsql, objects):
     objects = {(clean_name(file.stem), directory.name) for file, directory in objects}
 
     for object_name, object_type in objects:
-        plsql.execute(f"DROP {object_type} {object_name}")
+        try:
+            plsql.execute(f"DROP {object_type} {object_name}")
+        except DatabaseError as err:
+            error_code = err.args[0].code
+            if error_code in [1434, 2289, 4043, 942]:
+                continue
+            raise
