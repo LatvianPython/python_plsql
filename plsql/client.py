@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from collections import namedtuple
 from enum import IntEnum
-from typing import Tuple, Iterator
+from itertools import starmap
+from operator import itemgetter
+from typing import Iterator
+from typing import Tuple
 
 import cx_Oracle as oracle
 
@@ -144,9 +147,48 @@ def _exhaustive_name_resolution(
     raise NotFound(f"name {name} not found")
 
 
+class Schema:
+    def __init__(self, plsql: Database, name: str):
+        self._plsql, self._name = plsql, name
+
+
 class Function:
-    def __init__(self, name: ResolvedName):
-        self._name = name
+    def __init__(self, plsql: Database, name: ResolvedName):
+        self._plsql, self._name = plsql, name
+
+
+class Query:
+    def __init__(
+        self, connection: oracle.Connection, sql: str, *positional_binds, **named_binds
+    ):
+        if all([positional_binds, named_binds]):
+            raise ValueError("Can not bind both by position and name")
+
+        binds = positional_binds or named_binds
+
+        self._connection, self.sql, self.binds = (connection, sql, binds)
+
+    def _execute(self):
+        with self._connection.cursor() as cursor:
+            cursor.execute(self.sql, self.binds)
+
+            if len(cursor.description) > 1:
+                record_type = namedtuple(
+                    "Record", (column[0].lower() for column in cursor.description)
+                )
+                records = starmap(record_type, cursor)
+            else:
+                records = map(itemgetter(0), cursor)
+
+            for record in records:
+                yield record
+
+    @property
+    def first(self):
+        return next(self._execute())
+
+    def __iter__(self):
+        return self._execute()
 
 
 class Database:
@@ -167,11 +209,17 @@ class Database:
     def __getattr__(self, item):
         try:
             name = self._name_resolve(item)
-        except oracle.DatabaseError:
-            raise AttributeError
+        except (oracle.DatabaseError, NotFound):
+            if self.query(
+                """SELECT COUNT(*) FROM all_users WHERE username = UPPER(:username)""",
+                username=item,
+            ).first:
+                return Schema(plsql=self, name=item)
 
-        if name.object_type == ObjectTypes.function:
-            return Function(name)
+            raise AttributeError
+        else:
+            if name.object_type == ObjectTypes.function:
+                return Function(plsql=self, name=name)
 
         raise AttributeError
 
@@ -198,8 +246,8 @@ class Database:
             object_number,
         )
 
-    def query(self, sql: str, *args, **kwargs):
-        pass
+    def query(self, sql: str, *positional_binds, **named_binds) -> Query:
+        return Query(self._connection, sql, *positional_binds, **named_binds)
 
     def execute(self, statement: str, *args, **kwargs) -> None:
         with self._connection.cursor() as cursor:
