@@ -23,13 +23,31 @@
 # 252 PL/SQL BOOLEAN                                   -- bool
 
 
-def test_describe_simple_function(plsql):
+def test_describe_simple_procedure(plsql):
     result = plsql._describe_procedure("test_synonym_procedure")
+    assert len(list(result)) == 0
 
-    assert result is not None
+
+def test_describe_procedure_no_arguments(plsql):
+    result = plsql._describe_procedure("test_package.simple_procedure")
+    assert len(list(result)) == 1
+
+
+def test_describe_function_no_arguments(plsql):
+    result = plsql._describe_procedure("test_package.simple_function")
+    assert len(list(result)) == 1
+
+
+def test_describe_function_with_arguments(plsql):
+    result = plsql._describe_procedure("simple_function")
+    assert len(list(result)) == 2
 
 
 def test_describe_all_parameters(plsql):
     result = plsql._describe_procedure("test_describe.oracle_datatypes")
+    assert len(list(result)) == 27
 
-    assert result is not None
+
+def test_overloaded_returns_multiple_definitions(plsql):
+    result = plsql._describe_procedure("test_overload.to_string")
+    assert len(list(result)) == 4

@@ -2,9 +2,13 @@ from __future__ import annotations
 
 from collections import namedtuple
 from enum import IntEnum
+from itertools import groupby
 from itertools import starmap
+from operator import attrgetter
 from operator import itemgetter
+from typing import Any
 from typing import Iterator
+from typing import List
 from typing import Tuple
 
 import cx_Oracle as oracle
@@ -36,6 +40,8 @@ class NotFound(Exception):
 def _dbms_describe_describe_procedure(
     connection: oracle.Connection, name: str
 ) -> Iterator[Tuple[Any, ...]]:
+    """Wrapper for Oracle DBMS_DESCRIBE.DESCRIBE_PROCEDURE procedure"""
+
     number_table, varchar2_table = (
         connection.gettype("DBMS_DESCRIBE.NUMBER_TABLE"),
         connection.gettype("DBMS_DESCRIBE.VARCHAR2_TABLE"),
@@ -73,7 +79,6 @@ def _dbms_describe_describe_procedure(
                 scale,
                 radix,
                 spare,
-                True,
             ],
         )
 
@@ -95,6 +100,7 @@ def _dbms_describe_describe_procedure(
 def _dbms_utility_name_resolve(
     connection: oracle.Connection, name: str, context: int
 ) -> Tuple[str, str, str, str, int, int]:
+    """Wrapper for Oracle DBMS_UTILITY.NAME_RESOLVE procedure"""
     with connection.cursor() as cursor:
         schema = cursor.var(str)
         part1 = cursor.var(str)
@@ -130,6 +136,7 @@ def _dbms_utility_name_resolve(
 def _exhaustive_name_resolution(
     connection: oracle.Connection, name: str
 ) -> Tuple[str, str, str, str, int, int]:
+    """Exhaustively searches for name in database using all available contexts possible in DBMS_UTILITY.NAME_RESOLVE"""
     for context in range(0, 10):
         try:
             return _dbms_utility_name_resolve(
@@ -149,11 +156,6 @@ def _exhaustive_name_resolution(
 
 class Schema:
     def __init__(self, plsql: Database, name: str):
-        self._plsql, self._name = plsql, name
-
-
-class Function:
-    def __init__(self, plsql: Database, name: ResolvedName):
         self._plsql, self._name = plsql, name
 
 
@@ -191,6 +193,61 @@ class Query:
         return self._execute()
 
 
+class Function:
+    def __init__(self, plsql: Database, name: ResolvedName):
+        self._plsql, self._name = plsql, name
+
+
+def return_type(arguments: List[Argument]):
+    """
+    Extracts return type from list of arguments.
+    According to Oracle documentation: "Position 0 returns the values for the return type of a function."
+    """
+    for argument in arguments:
+        if argument.position == 0:
+            return argument
+
+
+class Overload:
+    def __init__(self, arguments):
+        self.arguments = list(arguments)
+
+        self.return_type = return_type(self.arguments)
+
+        self.arguments = [
+            argument
+            for argument in self.arguments
+            if argument.position and argument.datatype
+        ]
+
+
+def group_by_overload(arguments: Iterator[Argument]) -> List[Overload]:
+    return [
+        Overload(arguments=grouped_arguments)
+        for _, grouped_arguments in groupby(arguments, attrgetter("overload"))
+    ] or [Overload(arguments=[])]
+
+
+class Subprogram:
+    def __init__(
+        self, plsql: Database, resolved: ResolvedName, arguments: Iterator[Argument]
+    ):
+        self.plsql, self.resolved = plsql, resolved
+
+        self.overloads = group_by_overload(arguments=arguments)
+
+    @property
+    def overloaded(self) -> bool:
+        return len(self.overloads) > 1
+
+    @property
+    def standalone(self) -> bool:
+        return self.resolved.object_type in {
+            ObjectTypes.procedure,
+            ObjectTypes.function,
+        }
+
+
 class Database:
     def __init__(
         self,
@@ -215,20 +272,25 @@ class Database:
                 username=item,
             ).first:
                 return Schema(plsql=self, name=item)
-
             raise AttributeError
         else:
-            if name.object_type == ObjectTypes.function:
-                return Function(plsql=self, name=name)
+            if name.object_type in {
+                ObjectTypes.function,
+                ObjectTypes.procedure,
+            }:
+                return Subprogram(
+                    plsql=self, resolved=name, arguments=self._describe_procedure(item),
+                )
 
         raise AttributeError
 
-    def _describe_procedure(self, name: str) -> List[Argument]:
-        result = _dbms_describe_describe_procedure(self._connection, name)
+    def _describe_procedure(self, name: str) -> Iterator[Argument]:
+        arguments = _dbms_describe_describe_procedure(self._connection, name)
 
-        return [Argument(*argument) for argument in result]
+        return (Argument(*argument) for argument in arguments)
 
     def _name_resolve(self, name: str) -> ResolvedName:
+        """Resolves name using in-built database procedure DBMS_UTILITY.NAME_RESOLVE"""
         (
             schema,
             part1,

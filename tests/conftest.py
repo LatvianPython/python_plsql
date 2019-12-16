@@ -11,7 +11,7 @@ from cx_Oracle import DatabaseError
 @pytest.fixture(scope="session")
 def plsql():
     config = configparser.ConfigParser()
-    config.read("./database.ini")
+    config.read("./tests/database.ini")
 
     parameters = dict(config["database"].items())
 
@@ -32,7 +32,9 @@ def plsql():
     )
 
     directories = [
-        directory for directory in Path(".").glob("./sql/*/") if directory.is_dir()
+        directory
+        for directory in Path("./tests").glob("./sql/*/")
+        if directory.is_dir()
     ]
 
     objects = [
@@ -40,6 +42,8 @@ def plsql():
         for directory in directories
         for file in directory.glob("*.sql")
     ]
+
+    assert objects, "no objects found!"
 
     drop_all_objects(database, objects)
     create_objects(database, objects)
