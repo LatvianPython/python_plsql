@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from plsql import Database
+from python_plsql import Database
 
 from cx_Oracle import DatabaseError
 

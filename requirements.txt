@@ -1,3 +1,2 @@
 cx_Oracle
 pytest
-mypy
