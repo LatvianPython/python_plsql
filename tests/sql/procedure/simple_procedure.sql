@@ -1,5 +1,5 @@
 CREATE OR REPLACE PROCEDURE simple_procedure IS
-    v_int INTEGER;
+    v_int INTEGER DEFAULT 42;
 BEGIN
-    v_int := 42;
+    raise_application_error(-20001, 'You called me :) ' || TO_CHAR(v_int));
 END;

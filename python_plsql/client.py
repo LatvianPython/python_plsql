@@ -209,16 +209,19 @@ def return_type(arguments: List[Argument]):
 
 
 class Overload:
-    def __init__(self, arguments):
+    def __init__(self, arguments: Iterator[Argument]):
         self.arguments = list(arguments)
 
-        self.return_type = return_type(self.arguments)
+        self.return_type: Argument = return_type(self.arguments)
 
         self.arguments = [
             argument
             for argument in self.arguments
             if argument.position and argument.datatype
         ]
+
+    def match(self, *args, **kwargs) -> bool:
+        return (len(args) + len(kwargs)) == len(self.arguments)
 
 
 def group_by_overload(arguments: Iterator[Argument]) -> List[Overload]:
@@ -236,12 +239,30 @@ class Subprogram:
 
         self.overloads = group_by_overload(arguments=arguments)
 
+    def __call__(self, *args, **kwargs):
+        if not self._match(*args, **kwargs):
+            raise ValueError("Arguments do not match subprogram")
+
+        with self.plsql._connection.cursor() as cursor:
+            cursor.callproc(self.resolved.name, *args, **kwargs)
+
+    def _matches(self, *args, **kwargs) -> List[Overload]:
+        return [
+            overload for overload in self.overloads if overload.match(*args, **kwargs)
+        ]
+
+    def _match(self, *args, **kwargs) -> bool:
+        return bool(self._matches(*args, **kwargs))
+
     @property
     def overloaded(self) -> bool:
+        """returns true if exists multiple definitions of the same subprogram in a package
+        only applicable for package procedures/functions where overloading is possible"""
         return len(self.overloads) > 1
 
     @property
     def standalone(self) -> bool:
+        """returns true if procedure/function is not part of a package"""
         return self.resolved.object_type in {
             ObjectTypes.procedure,
             ObjectTypes.function,
