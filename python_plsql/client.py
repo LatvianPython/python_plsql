@@ -254,24 +254,34 @@ class Subprogram:
     def __init__(
         self, plsql: Database, resolved: ResolvedName, arguments: Iterator[Argument]
     ):
-        self.plsql, self.resolved = plsql, resolved
-
-        self.overloads = group_by_overload(arguments=arguments)
+        self.plsql, self.resolved, self.overloads = (
+            plsql,
+            resolved,
+            group_by_overload(arguments=arguments),
+        )
 
     def _call_function(self, *args, **kwargs):
+        # match = self._matches(*args, **kwargs)[0]
+
         with self.plsql._connection.cursor() as cursor:
             return cursor.callfunc(self.resolved.name, int, args, kwargs)
 
     def _call_procedure(self, *args, **kwargs):
+        # match = self._matches(*args, **kwargs)[0]
+
         with self.plsql._connection.cursor() as cursor:
             cursor.callproc(self.resolved.name, *args, **kwargs)
 
     def __call__(self, *args, **kwargs):
-        if not self._match(*args, **kwargs):
+        if (matches := len(self._matches(*args, **kwargs))) > 1:
+            raise ValueError("Arguments matched with too many subprograms")
+        elif matches == 0:
             raise ValueError("Arguments do not match subprogram")
 
-        if len(self._matches(*args, **kwargs)) > 1:
-            raise ValueError("Matched with too many subprograms")
+        if self.is_function and self.is_procedure:
+            raise NotImplementedError(
+                "Subprogram is overloaded as a function and procedure, use _call_(procedure/function) method"
+            )
 
         if self.is_function:
             return self._call_function(*args, **kwargs)
@@ -279,11 +289,13 @@ class Subprogram:
             self._call_procedure(*args, **kwargs)
 
     def _matches(self, *args, **kwargs) -> List[Overload]:
+        """returns overloads that match with provided parameters"""
         return [
             overload for overload in self.overloads if overload.match(*args, **kwargs)
         ]
 
     def _match(self, *args, **kwargs) -> bool:
+        """returns true if function has"""
         return bool(self._matches(*args, **kwargs))
 
     @property
@@ -294,7 +306,11 @@ class Subprogram:
 
     @property
     def is_function(self):
-        return all(overload.return_type for overload in self.overloads)
+        return any(overload.return_type for overload in self.overloads)
+
+    @property
+    def is_procedure(self):
+        return any(not overload.return_type for overload in self.overloads)
 
     @property
     def standalone(self) -> bool:
@@ -344,6 +360,12 @@ class Database:
                     plsql=self, resolved=name, arguments=self._describe_procedure(item),
                 )
             elif name.object_type == ObjectTypes.package:
+                if len(item.split(".")) > 1:
+                    return Subprogram(
+                        plsql=self,
+                        resolved=name,
+                        arguments=self._describe_procedure(item),
+                    )
                 return Package(plsql=self, name=item)
 
         raise AttributeError
