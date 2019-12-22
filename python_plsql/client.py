@@ -163,6 +163,11 @@ class Schema:
     def __init__(self, plsql: Database, name: str):
         self._plsql, self._name = plsql, name
 
+    def __getattr__(self, item):
+        item = f"{self._name}.{item}"
+        name = self._plsql._name_resolve(item)
+        return search_object(plsql=self._plsql, name=name, item=item)
+
 
 class Package:
     def __init__(self, plsql: Database, name: str):
@@ -321,6 +326,24 @@ class Subprogram:
         }
 
 
+def search_object(plsql: Database, name: ResolvedName, item: str):
+    if name.object_type in {
+        ObjectTypes.function,
+        ObjectTypes.procedure,
+    }:
+        return Subprogram(
+            plsql=plsql, resolved=name, arguments=plsql._describe_procedure(item),
+        )
+    elif name.object_type == ObjectTypes.package:
+        items = item.split(".")
+        with_schema = plsql.is_schema(items[0])
+        if len(items) == 3 and with_schema or len(items) == 2 and not with_schema:
+            return Subprogram(
+                plsql=plsql, resolved=name, arguments=plsql._describe_procedure(item),
+            )
+        return Package(plsql=plsql, name=item)
+
+
 class Database:
     def __init__(
         self,
@@ -352,21 +375,8 @@ class Database:
                 return Schema(plsql=self, name=item)
             raise
         else:
-            if name.object_type in {
-                ObjectTypes.function,
-                ObjectTypes.procedure,
-            }:
-                return Subprogram(
-                    plsql=self, resolved=name, arguments=self._describe_procedure(item),
-                )
-            elif name.object_type == ObjectTypes.package:
-                if len(item.split(".")) > 1:
-                    return Subprogram(
-                        plsql=self,
-                        resolved=name,
-                        arguments=self._describe_procedure(item),
-                    )
-                return Package(plsql=self, name=item)
+            if found_object := search_object(plsql=self, name=name, item=item):
+                return found_object
 
         raise AttributeError
 
