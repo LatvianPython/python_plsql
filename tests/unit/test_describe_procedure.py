@@ -33,9 +33,9 @@ def test_describe_procedure_no_arguments(plsql):
     assert len(list(result)) == 1
 
 
-def test_describe_function_no_arguments(plsql):
+def test_describe_package_function_with_arguments(plsql):
     result = plsql._describe_procedure("test_package.simple_function")
-    assert len(list(result)) == 1
+    assert len(list(result)) == 2
 
 
 def test_describe_function_with_arguments(plsql):

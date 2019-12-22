@@ -258,12 +258,25 @@ class Subprogram:
 
         self.overloads = group_by_overload(arguments=arguments)
 
+    def _call_function(self, *args, **kwargs):
+        with self.plsql._connection.cursor() as cursor:
+            return cursor.callfunc(self.resolved.name, int, args, kwargs)
+
+    def _call_procedure(self, *args, **kwargs):
+        with self.plsql._connection.cursor() as cursor:
+            cursor.callproc(self.resolved.name, *args, **kwargs)
+
     def __call__(self, *args, **kwargs):
         if not self._match(*args, **kwargs):
             raise ValueError("Arguments do not match subprogram")
 
-        with self.plsql._connection.cursor() as cursor:
-            cursor.callproc(self.resolved.name, *args, **kwargs)
+        if len(self._matches(*args, **kwargs)) > 1:
+            raise ValueError("Matched with too many subprograms")
+
+        if self.is_function:
+            return self._call_function(*args, **kwargs)
+        else:
+            self._call_procedure(*args, **kwargs)
 
     def _matches(self, *args, **kwargs) -> List[Overload]:
         return [
@@ -278,6 +291,10 @@ class Subprogram:
         """returns true if exists multiple definitions of the same subprogram in a package
         only applicable for package procedures/functions where overloading is possible"""
         return len(self.overloads) > 1
+
+    @property
+    def is_function(self):
+        return all(overload.return_type for overload in self.overloads)
 
     @property
     def standalone(self) -> bool:
