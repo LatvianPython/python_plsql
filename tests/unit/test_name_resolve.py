@@ -13,8 +13,8 @@ from python_plsql import DatabaseError, NotFound
         ("test_table", ("TEST_USER", "TEST_TABLE"),),
         ("test_sequence", ("TEST_USER", "TEST_SEQUENCE"),),
         ("test_type", ("TEST_USER", "TEST_TYPE"),),
-        ("test_synonym_procedure", ("TEST_USER", "SIMPLE_PROCEDURE"),),
-        ("test_synonym_function", ("TEST_USER", "SIMPLE_FUNCTION"),),
+        ("synonym_procedure", ("TEST_USER", "SIMPLE_PROCEDURE"),),
+        ("synonym_function", ("TEST_USER", "SIMPLE_FUNCTION"),),
     ],
 )
 def test_names_are_resolved(plsql, name, expected):

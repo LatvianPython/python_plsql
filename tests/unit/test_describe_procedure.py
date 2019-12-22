@@ -24,7 +24,7 @@
 
 
 def test_describe_simple_procedure(plsql):
-    result = plsql._describe_procedure("test_synonym_procedure")
+    result = plsql._describe_procedure("synonym_procedure")
     assert len(list(result)) == 0
 
 
