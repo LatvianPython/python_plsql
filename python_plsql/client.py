@@ -61,26 +61,31 @@ def _dbms_describe_describe_procedure(
         radix = number_table.newobject()
         spare = number_table.newobject()
 
-        cursor.callproc(
-            "dbms_describe.describe_procedure",
-            [
-                name,
-                None,
-                None,
-                overload,
-                position,
-                level,
-                argument_name,
-                datatype,
-                default_value,
-                in_out,
-                length,
-                precision,
-                scale,
-                radix,
-                spare,
-            ],
-        )
+        try:
+            cursor.callproc(
+                "dbms_describe.describe_procedure",
+                [
+                    name,
+                    None,
+                    None,
+                    overload,
+                    position,
+                    level,
+                    argument_name,
+                    datatype,
+                    default_value,
+                    in_out,
+                    length,
+                    precision,
+                    scale,
+                    radix,
+                    spare,
+                ],
+            )
+        except oracle.DatabaseError as err:
+            if err.args[0].code == 20001:
+                raise NotFound
+            raise
 
         return zip(
             overload.aslist(),
@@ -157,6 +162,20 @@ def _exhaustive_name_resolution(
 class Schema:
     def __init__(self, plsql: Database, name: str):
         self._plsql, self._name = plsql, name
+
+
+class Package:
+    def __init__(self, plsql: Database, name: str):
+        self._plsql, self._name = plsql, name
+
+    def __getattr__(self, item):
+        item = f"{self._name}.{item}"
+        name = self._plsql._name_resolve(item)
+        return Subprogram(
+            plsql=self._plsql,
+            resolved=name,
+            arguments=self._plsql._describe_procedure(item),
+        )
 
 
 class Query:
@@ -284,16 +303,21 @@ class Database:
             user=user, password=password, dsn=dsn, encoding=encoding, nencoding=encoding
         )
 
+    def is_schema(self, schema_name):
+        return bool(
+            self.query(
+                """SELECT COUNT(*) FROM all_users WHERE username = UPPER(:username)""",
+                username=schema_name,
+            ).first
+        )
+
     def __getattr__(self, item):
         try:
             name = self._name_resolve(item)
         except (oracle.DatabaseError, NotFound):
-            if self.query(
-                """SELECT COUNT(*) FROM all_users WHERE username = UPPER(:username)""",
-                username=item,
-            ).first:
+            if self.is_schema(schema_name=item):
                 return Schema(plsql=self, name=item)
-            raise AttributeError
+            raise
         else:
             if name.object_type in {
                 ObjectTypes.function,
@@ -302,6 +326,8 @@ class Database:
                 return Subprogram(
                     plsql=self, resolved=name, arguments=self._describe_procedure(item),
                 )
+            elif name.object_type == ObjectTypes.package:
+                return Package(plsql=self, name=item)
 
         raise AttributeError
 
