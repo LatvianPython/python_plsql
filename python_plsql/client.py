@@ -247,12 +247,25 @@ class Overload:
     def match(self, *args, **kwargs) -> bool:
         return (len(args) + len(kwargs)) == len(self.arguments)
 
+    @property
+    def is_function(self) -> bool:
+        return bool(self.return_type)
+
 
 def group_by_overload(arguments: Iterator[Argument]) -> List[Overload]:
     return [
         Overload(arguments=grouped_arguments)
         for _, grouped_arguments in groupby(arguments, attrgetter("overload"))
     ] or [Overload(arguments=[])]
+
+
+def filter_match(matches: Iterator[Overload]) -> Overload:
+    matches = list(matches)
+    if len(matches) > 1:
+        raise ValueError("Arguments matched with too many subprograms")
+    elif len(matches) == 0:
+        raise ValueError("Arguments do not match subprogram")
+    return matches[0]
 
 
 class Subprogram:
@@ -266,24 +279,19 @@ class Subprogram:
         )
 
     def _call_function(self, *args, **kwargs):
-        # match = self._matches(*args, **kwargs)[0]
+        _ = filter_match(self._function_matches(*args, **kwargs))
 
         with self.plsql._connection.cursor() as cursor:
             return cursor.callfunc(self.resolved.name, int, args, kwargs)
 
     def _call_procedure(self, *args, **kwargs):
-        # match = self._matches(*args, **kwargs)[0]
+        _ = filter_match(self._procedure_matches(*args, **kwargs))
 
         with self.plsql._connection.cursor() as cursor:
-            cursor.callproc(self.resolved.name, *args, **kwargs)
+            cursor.callproc(self.resolved.name, args, kwargs)
 
     def __call__(self, *args, **kwargs):
-        if (matches := len(self._matches(*args, **kwargs))) > 1:
-            raise ValueError("Arguments matched with too many subprograms")
-        elif matches == 0:
-            raise ValueError("Arguments do not match subprogram")
-
-        if self.is_function and self.is_procedure:
+        if self.overloaded and self.is_function and self.is_procedure:
             raise NotImplementedError(
                 "Subprogram is overloaded as a function and procedure, use _call_(procedure/function) method"
             )
@@ -291,17 +299,19 @@ class Subprogram:
         if self.is_function:
             return self._call_function(*args, **kwargs)
         else:
-            self._call_procedure(*args, **kwargs)
+            return self._call_procedure(*args, **kwargs)
 
-    def _matches(self, *args, **kwargs) -> List[Overload]:
+    def _function_matches(self, *args, **kwargs) -> Iterator[Overload]:
+        return filter(lambda x: x.is_function, self._matches(*args, **kwargs))
+
+    def _procedure_matches(self, *args, **kwargs) -> Iterator[Overload]:
+        return filter(lambda x: not x.is_function, self._matches(*args, **kwargs))
+
+    def _matches(self, *args, **kwargs) -> Iterator[Overload]:
         """returns overloads that match with provided parameters"""
-        return [
+        return (
             overload for overload in self.overloads if overload.match(*args, **kwargs)
-        ]
-
-    def _match(self, *args, **kwargs) -> bool:
-        """returns true if function has"""
-        return bool(self._matches(*args, **kwargs))
+        )
 
     @property
     def overloaded(self) -> bool:
@@ -311,11 +321,11 @@ class Subprogram:
 
     @property
     def is_function(self):
-        return any(overload.return_type for overload in self.overloads)
+        return any(overload.is_function for overload in self.overloads)
 
     @property
     def is_procedure(self):
-        return any(not overload.return_type for overload in self.overloads)
+        return any(not overload.is_function for overload in self.overloads)
 
     @property
     def standalone(self) -> bool:

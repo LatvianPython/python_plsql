@@ -6,19 +6,18 @@ def procedure(plsql, request):
     return getattr(plsql, request.param)
 
 
-def test_procedure_found_in_same_schema(plsql):
-    procedure = plsql.simple_procedure
+def test_procedure_is_found(procedure):
     assert procedure.resolved.name == "SIMPLE_PROCEDURE"
 
 
-def test_procedure_found_with_synonym(plsql):
-    procedure = plsql.synonym_procedure
-    assert procedure.resolved.name == "SIMPLE_PROCEDURE"
-
-
-def test_standalone_procedures_are_not_overloaded(plsql, procedure):
+def test_standalone_procedures_are_not_overloaded(procedure):
     assert not procedure.overloaded
 
 
-def test_standalone_procedures_are_standalone(plsql, procedure):
+def test_standalone_procedures_are_standalone(procedure):
     assert procedure.standalone
+
+
+def test_procedure_identified_as_such(procedure):
+    assert procedure.is_procedure
+    assert not procedure.is_function
