@@ -9,6 +9,8 @@ from operator import itemgetter
 from typing import Any
 from typing import Iterator
 from typing import List
+from typing import Optional
+from typing import Union
 from typing import Tuple
 
 import cx_Oracle as oracle
@@ -163,7 +165,7 @@ class Schema:
     def __init__(self, plsql: Database, name: str):
         self._plsql, self._name = plsql, name
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str) -> Optional[Union[Subprogram, Package]]:
         item = f"{self._name}.{item}"
         name = self._plsql._name_resolve(item)
         return search_object(plsql=self._plsql, name=name, item=item)
@@ -173,7 +175,7 @@ class Package:
     def __init__(self, plsql: Database, name: str):
         self._plsql, self._name = plsql, name
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str) -> Subprogram:
         item = f"{self._name}.{item}"
         name = self._plsql._name_resolve(item)
         return Subprogram(
@@ -222,7 +224,7 @@ class Function:
         self._plsql, self._name = plsql, name
 
 
-def return_type(arguments: List[Argument]):
+def return_type(arguments: List[Argument]) -> Optional[Argument]:
     """
     Extracts return type from list of arguments.
     According to Oracle documentation: "Position 0 returns the values for the return type of a function."
@@ -320,11 +322,11 @@ class Subprogram:
         return len(self.overloads) > 1
 
     @property
-    def is_function(self):
+    def is_function(self) -> bool:
         return any(overload.is_function for overload in self.overloads)
 
     @property
-    def is_procedure(self):
+    def is_procedure(self) -> bool:
         return any(not overload.is_function for overload in self.overloads)
 
     @property
@@ -336,7 +338,9 @@ class Subprogram:
         }
 
 
-def search_object(plsql: Database, name: ResolvedName, item: str):
+def search_object(
+    plsql: Database, name: ResolvedName, item: str
+) -> Optional[Union[Subprogram, Package]]:
     if name.object_type in {
         ObjectTypes.function,
         ObjectTypes.procedure,
@@ -369,7 +373,7 @@ class Database:
             user=user, password=password, dsn=dsn, encoding=encoding, nencoding=encoding
         )
 
-    def is_schema(self, schema_name):
+    def is_schema(self, schema_name: str) -> bool:
         return bool(
             self.query(
                 """SELECT COUNT(*) FROM all_users WHERE username = UPPER(:username)""",
@@ -377,7 +381,7 @@ class Database:
             ).first
         )
 
-    def __getattr__(self, item):
+    def __getattr__(self, item) -> Union[Schema, Package, Subprogram]:
         try:
             name = self._name_resolve(item)
         except (oracle.DatabaseError, NotFound):

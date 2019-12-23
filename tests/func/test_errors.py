@@ -1,5 +1,6 @@
 import pytest
-from python_plsql import DatabaseError, NotFound
+
+from python_plsql import NotFound
 
 
 def test_error_when_object_does_not_exist(plsql):

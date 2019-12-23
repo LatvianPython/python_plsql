@@ -1,6 +1,6 @@
 import pytest
 
-from python_plsql import DatabaseError, NotFound
+from python_plsql import NotFound
 
 
 @pytest.mark.parametrize(
