@@ -219,11 +219,6 @@ class Query:
         return self._execute()
 
 
-class Function:
-    def __init__(self, plsql: Database, name: ResolvedName):
-        self._plsql, self._name = plsql, name
-
-
 def return_type(arguments: List[Argument]) -> Optional[Argument]:
     """
     Extracts return type from list of arguments.
@@ -270,26 +265,45 @@ def filter_match(matches: Iterator[Overload]) -> Overload:
     return matches[0]
 
 
+def python_type(plsql_type: Argument):
+    type_mapping = {
+        1: oracle.STRING,
+        2: oracle.NUMBER,
+        3: oracle.NATIVE_INT,
+        11: oracle.ROWID,
+        12: oracle.DATETIME,
+        23: oracle.BINARY,
+        24: oracle.LONG_BINARY,
+        96: oracle.STRING,  # oracle.FIXED_CHAR
+        112: oracle.STRING,  # oracle.CLOB
+        252: oracle.BOOLEAN,
+    }
+
+    return type_mapping[plsql_type.datatype]
+
+
 class Subprogram:
     def __init__(
         self, plsql: Database, resolved: ResolvedName, arguments: Iterator[Argument]
     ):
-        self.plsql, self.resolved, self.overloads = (
+        self._plsql, self.resolved, self.overloads = (
             plsql,
             resolved,
             group_by_overload(arguments=arguments),
         )
 
     def _call_function(self, *args, **kwargs):
-        _ = filter_match(self._function_matches(*args, **kwargs))
+        match = filter_match(self._function_matches(*args, **kwargs))
 
-        with self.plsql._connection.cursor() as cursor:
-            return cursor.callfunc(self.resolved.name, int, args, kwargs)
+        with self._plsql._connection.cursor() as cursor:
+            return cursor.callfunc(
+                self.resolved.name, python_type(match.return_type), args, kwargs
+            )
 
     def _call_procedure(self, *args, **kwargs):
         _ = filter_match(self._procedure_matches(*args, **kwargs))
 
-        with self.plsql._connection.cursor() as cursor:
+        with self._plsql._connection.cursor() as cursor:
             cursor.callproc(self.resolved.name, args, kwargs)
 
     def __call__(self, *args, **kwargs):

@@ -1,23 +1,23 @@
 import pytest
+import datetime
 
 
-@pytest.fixture(
-    params=[
-        "ret_varchar",
-        "ret_number",
-        "ret_binary_integer",
-        "ret_clob",
-        "ret_rowid",
-        "ret_date",
-        "ret_raw",
-        "ret_long_raw",
-        "ret_char",
-        "ret_bool",
-    ]
+@pytest.mark.parametrize(
+    "func, expected",
+    [
+        ("ret_varchar", "42"),
+        ("ret_number", 42.42),
+        ("ret_binary_integer", 42),
+        ("ret_clob", "42"),
+        ("ret_rowid", "AAAACPAABAAAAShAAA"),
+        ("ret_date", datetime.datetime(year=2019, month=12, day=20)),
+        ("ret_raw", b"42"),
+        ("ret_long_raw", b"42"),
+        ("ret_char", "42"),
+        ("ret_bool", True),
+    ],
 )
-def functions(plsql, request):
-    return getattr(plsql.test_return, request.param)
+def test_return_values(plsql, func, expected):
+    return_value = getattr(plsql.test_return, func)()
 
-
-def test_return_values(functions):
-    assert functions() is None
+    assert return_value == expected

@@ -5,56 +5,61 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
     FUNCTION ret_varchar
     RETURN VARCHAR2 IS
     BEGIN
-        RETURN NULL;
+        RETURN '42';
     END;
 
     -- 2   NUMBER, INTEGER, SMALLINT, REAL, FLOAT, DECIMAL  -- float
     FUNCTION ret_number
     RETURN NUMBER IS
     BEGIN
-        RETURN NULL;
+        RETURN 42.42;
     END;
 
     -- 3   BINARY_INTEGER, PLS_INTEGER, POSITIVE, NATURAL   -- int
     FUNCTION ret_binary_integer
     RETURN BINARY_INTEGER IS
     BEGIN
-        RETURN NULL;
+        RETURN 42;
     END;
 
     -- 8   LONG ?CLOB?                                      -- str
     FUNCTION ret_clob
     RETURN CLOB IS
     BEGIN
-        RETURN NULL;
+        RETURN '42';
     END;
 
     -- 11  ROWID                                            -- str
     FUNCTION ret_rowid
     RETURN ROWID IS
+        v_rowid ROWID;
     BEGIN
-        RETURN NULL;
+        SELECT ROWID
+          INTO v_rowid
+          FROM dual;
+
+        RETURN v_rowid;
     END;
 
     -- 12  DATE                                             -- datetime.datetime
     FUNCTION ret_date
     RETURN DATE IS
     BEGIN
-        RETURN NULL;
+        RETURN TO_DATE('20.12.2019', 'dd.mm.yyyy');
     END;
 
     -- 23  RAW                                              -- bytes
     FUNCTION ret_raw
     RETURN RAW IS
     BEGIN
-        RETURN NULL;
+        RETURN HEXTORAW('3432');
     END;
 
     -- 24  LONG RAW                                         -- bytes
     FUNCTION ret_long_raw
     RETURN LONG RAW IS
     BEGIN
-        RETURN NULL;
+        RETURN HEXTORAW('3432');
     END;
 
     -- 58  OPAQUE TYPE                                      -- ??? XMLType in Oracle
@@ -65,7 +70,7 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
     FUNCTION ret_char
     RETURN CHAR IS
     BEGIN
-        RETURN NULL;
+        RETURN '42';
     END;
 
     -- 106 MLSLABEL                                         -- ??? only backwards compatibility ???
@@ -116,7 +121,7 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
     FUNCTION ret_bool
     RETURN BOOLEAN IS
     BEGIN
-        RETURN NULL;
+        RETURN TRUE;
     END;
 
 
