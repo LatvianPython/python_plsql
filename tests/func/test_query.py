@@ -30,3 +30,7 @@ def test_can_use_binds_by_name(plsql):
 def test_binding_by_position_and_name_raises_an_exception(plsql):
     with pytest.raises(ValueError, match="Can not bind both by position and name"):
         plsql.query("""SELECT :c, :d FROM dual""", 5, d=5)
+
+
+def test_no_result_returns_none(plsql):
+    assert plsql.query("""SELECT 1 FROM dual WHERE 1=2""").first is None

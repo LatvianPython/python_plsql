@@ -1,4 +1,19 @@
 CREATE OR REPLACE PACKAGE test_return AS
+
+    TYPE tr_record IS RECORD (
+        t_int_1 PLS_INTEGER,
+        t_int_2 PLS_INTEGER,
+        t_int_3 PLS_INTEGER
+    );
+
+    TYPE tt_nested IS TABLE OF PLS_INTEGER;
+
+    TYPE tt_nested_of_records IS TABLE OF tr_record;
+
+    TYPE tt_plsql_table IS TABLE OF PLS_INTEGER INDEX BY PLS_INTEGER;
+
+    TYPE tt_plsql_table_of_records IS TABLE OF tr_record INDEX BY PLS_INTEGER;
+
     -- 0   placeholder for procedures with no arguments     -- ------||------
     -- 1   VARCHAR2, VARCHAR, STRING                        -- str
     FUNCTION ret_varchar
@@ -49,8 +64,11 @@ CREATE OR REPLACE PACKAGE test_return AS
     --RETURN BINARY_INTEGER;
 
     -- 122 NESTED TABLE                                     -- list
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    FUNCTION ret_nested
+    RETURN tt_nested;
+
+    FUNCTION ret_nested_of_records
+    RETURN tt_nested_of_records;
 
     -- 123 VARRAY                                           -- list
     --FUNCTION ret_binary_integer
@@ -77,12 +95,15 @@ CREATE OR REPLACE PACKAGE test_return AS
     --RETURN BINARY_INTEGER;
 
     -- 250 PL/SQL RECORD                                    -- tuple - namedtuple
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    FUNCTION ret_record
+    RETURN tr_record;
 
     -- 251 PL/SQL TABLE                                     -- mapping
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    FUNCTION ret_plsql_table
+    RETURN tt_plsql_table;
+
+    FUNCTION ret_plsql_table_of_records
+    RETURN tt_plsql_table_of_records;
 
     -- 252 PL/SQL BOOLEAN                                   -- bool
     FUNCTION ret_bool

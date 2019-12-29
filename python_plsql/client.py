@@ -21,7 +21,7 @@ Argument = namedtuple(
 )
 
 ResolvedName = namedtuple(
-    "ResolvedName", "schema name database_link object_type object_number"
+    "ResolvedName", "schema name database_link object_type object_id subprogram_id"
 )
 
 
@@ -114,7 +114,7 @@ def _dbms_utility_name_resolve(
         part2 = cursor.var(str)
         database_link = cursor.var(str)
         part1_type = cursor.var(int)
-        object_number = cursor.var(int)
+        object_id = cursor.var(int)
 
         cursor.callproc(
             "dbms_utility.name_resolve",
@@ -126,7 +126,7 @@ def _dbms_utility_name_resolve(
                 part2,
                 database_link,
                 part1_type,
-                object_number,
+                object_id,
             ],
         )
 
@@ -136,7 +136,7 @@ def _dbms_utility_name_resolve(
             part2.getvalue(),
             database_link.getvalue(),
             part1_type.getvalue(),
-            object_number.getvalue(),
+            object_id.getvalue(),
         )
 
 
@@ -213,7 +213,10 @@ class Query:
 
     @property
     def first(self):
-        return next(self._execute())
+        try:
+            return next(self._execute())
+        except StopIteration:
+            return None
 
     def __iter__(self):
         return self._execute()
@@ -265,7 +268,66 @@ def filter_match(matches: Iterator[Overload]) -> Overload:
     return matches[0]
 
 
-def python_type(plsql_type: Argument):
+def plsql_record(attributes):
+    return namedtuple("Record", (attribute.name.lower() for attribute in attributes))
+
+
+def to_record(value, record, attributes):
+    return record(*(getattr(value, attribute.name) for attribute in attributes))
+
+
+def list_converter(value):
+    if value.type.elementType:
+        attributes = value.type.elementType.attributes
+        record = plsql_record(attributes)
+        return [to_record(val, record, attributes) for val in value.aslist()]
+    return value.aslist()
+
+
+def dict_converter(value):
+    if value.type.elementType:
+        attributes = value.type.elementType.attributes
+        record = plsql_record(attributes)
+        return {
+            key: to_record(val, record, attributes)
+            for key, val in value.asdict().items()
+        }
+    return value.asdict()
+
+
+def record_converter(value, record=None):
+    attributes = value.type.attributes
+    record = record or plsql_record(attributes)
+    return to_record(value, record, attributes)
+
+
+converters = {
+    122: list_converter,
+    250: record_converter,
+    251: dict_converter,
+}
+
+
+def type_name(plsql: Database, resolved: ResolvedName, plsql_type: Argument):
+    argument_type_name = plsql.query(
+        """
+    SELECT type_owner, type_name, type_subname
+      FROM all_arguments
+     WHERE object_id = :object_id
+       AND position = :position
+       AND subprogram_id = :subprogram_id
+    """,
+        object_id=resolved.object_id,
+        position=plsql_type.position,
+        subprogram_id=resolved.subprogram_id,
+    ).first
+
+    return ".".join(argument_type_name)
+
+
+def python_type(
+    plsql: Database, cursor: oracle.Cursor, resolved: ResolvedName, plsql_type: Argument
+):
     type_mapping = {
         1: oracle.STRING,
         2: oracle.NUMBER,
@@ -279,7 +341,15 @@ def python_type(plsql_type: Argument):
         252: oracle.BOOLEAN,
     }
 
-    return type_mapping[plsql_type.datatype]
+    try:
+        return type_mapping[plsql_type.datatype]
+    except KeyError:
+        converter = converters[plsql_type.datatype]
+
+        object_type = plsql._connection.gettype(
+            type_name(plsql=plsql, resolved=resolved, plsql_type=plsql_type)
+        )
+        return cursor.var(object_type, outconverter=converter)
 
 
 class Subprogram:
@@ -297,7 +367,15 @@ class Subprogram:
 
         with self._plsql._connection.cursor() as cursor:
             return cursor.callfunc(
-                self.resolved.name, python_type(match.return_type), args, kwargs
+                self.resolved.name,
+                python_type(
+                    plsql=self._plsql,
+                    cursor=cursor,
+                    resolved=self.resolved,
+                    plsql_type=match.return_type,
+                ),
+                args,
+                kwargs,
             )
 
     def _call_procedure(self, *args, **kwargs):
@@ -421,15 +499,32 @@ class Database:
             part2,
             database_link,
             part1_type,
-            object_number,
+            object_id,
         ) = _exhaustive_name_resolution(connection=self._connection, name=name)
+
+        object_type = ObjectTypes(part1_type)
+
+        if object_type == ObjectTypes.package and part2:
+            subprogram_id = self.query(
+                """
+            SELECT subprogram_id
+              FROM all_procedures
+             WHERE object_id = :object_id
+               AND procedure_name = :procedure_name
+            """,
+                object_id=object_id,
+                procedure_name=part2,
+            ).first
+        else:
+            subprogram_id = None
 
         return ResolvedName(
             schema,
             ".".join([part1 or "", part2 or ""]).strip("."),
             database_link,
-            ObjectTypes(part1_type),
-            object_number,
+            object_type,
+            object_id,
+            subprogram_id,
         )
 
     def query(self, sql: str, *positional_binds, **named_binds) -> Query:

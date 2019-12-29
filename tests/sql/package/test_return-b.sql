@@ -82,8 +82,27 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
     --RETURN BINARY_INTEGER;
 
     -- 122 NESTED TABLE                                     -- list
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    FUNCTION ret_nested
+    RETURN tt_nested IS
+        vt_nested tt_nested := tt_nested();
+    BEGIN
+        FOR v_i IN 1 .. 10 LOOP
+            vt_nested.extend;
+            vt_nested(v_i) := v_i * 2;
+        END LOOP;
+        RETURN vt_nested;
+    END ret_nested;
+
+    FUNCTION ret_nested_of_records
+    RETURN tt_nested_of_records IS
+        vt_nested_of_records tt_nested_of_records := tt_nested_of_records();
+    BEGIN
+        FOR v_i IN 1 .. 10 LOOP
+            vt_nested_of_records.extend;
+            vt_nested_of_records(v_i) := ret_record;
+        END LOOP;
+        RETURN vt_nested_of_records;
+    END ret_nested_of_records;
 
     -- 123 VARRAY                                           -- list
     --FUNCTION ret_binary_integer
@@ -110,12 +129,36 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
     --RETURN BINARY_INTEGER;
 
     -- 250 PL/SQL RECORD                                    -- tuple - namedtuple
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    FUNCTION ret_record
+    RETURN tr_record IS
+        vr_record tr_record;
+    BEGIN
+        vr_record.t_int_1 := 42;
+        vr_record.t_int_2 := 84;
+        vr_record.t_int_3 := 126;
+        RETURN vr_record;
+    END;
 
     -- 251 PL/SQL TABLE                                     -- mapping
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    FUNCTION ret_plsql_table
+    RETURN tt_plsql_table IS
+        vt_plsql_table tt_plsql_table;
+    BEGIN
+        FOR v_i IN 1 .. 10 LOOP
+            vt_plsql_table(v_i) := v_i;
+        END LOOP;
+        RETURN vt_plsql_table;
+    END ret_plsql_table;
+
+    FUNCTION ret_plsql_table_of_records
+    RETURN tt_plsql_table_of_records IS
+        vt_plsql_table_of_records tt_plsql_table_of_records;
+    BEGIN
+        FOR v_i IN 1 .. 10 LOOP
+            vt_plsql_table_of_records(v_i) := ret_record;
+        END LOOP;
+        RETURN vt_plsql_table_of_records;
+    END ret_plsql_table_of_records;
 
     -- 252 PL/SQL BOOLEAN                                   -- bool
     FUNCTION ret_bool
