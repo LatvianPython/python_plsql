@@ -139,6 +139,16 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
         RETURN vr_record;
     END;
 
+    FUNCTION ret_record_of_records
+    RETURN tr_record_of_records IS
+        vr_record_of_records tr_record_of_records;
+    BEGIN
+        vr_record_of_records.t_int_1 := 42;
+        vr_record_of_records.t_rec_2 := ret_record;
+        vr_record_of_records.t_rec_3 := ret_record;
+        RETURN vr_record_of_records;
+    END ret_record_of_records;
+
     -- 251 PL/SQL TABLE                                     -- mapping
     FUNCTION ret_plsql_table
     RETURN tt_plsql_table IS

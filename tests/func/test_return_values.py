@@ -16,6 +16,7 @@ import datetime
         ("ret_char", "42"),
         ("ret_bool", True),
         ("ret_record", (42, 84, 126)),
+        ("ret_record_of_records", (42, (42, 84, 126), (42, 84, 126))),
         ("ret_nested", [i * 2 for i in range(1, 11)]),
         ("ret_nested_of_records", [(42, 84, 126) for i in range(1, 11)]),
         ("ret_plsql_table", {i: i for i in range(1, 11)}),

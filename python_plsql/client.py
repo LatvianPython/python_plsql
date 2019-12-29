@@ -12,6 +12,7 @@ from typing import List
 from typing import Optional
 from typing import Union
 from typing import Tuple
+from typing import NamedTuple
 
 import cx_Oracle as oracle
 
@@ -268,19 +269,28 @@ def filter_match(matches: Iterator[Overload]) -> Overload:
     return matches[0]
 
 
-def plsql_record(attributes):
+def plsql_record(attributes) -> Any:
     return namedtuple("Record", (attribute.name.lower() for attribute in attributes))
 
 
-def to_record(value, record, attributes):
-    return record(*(getattr(value, attribute.name) for attribute in attributes))
+# noinspection PyTypeChecker
+def to_python(value):
+    if isinstance(value, oracle.Object):
+        return record_converter(value)
+    return value
+
+
+def to_record(value, record):
+    return record._make(
+        to_python(getattr(value, attribute.upper())) for attribute in record._fields
+    )
 
 
 def list_converter(value):
     if value.type.elementType:
         attributes = value.type.elementType.attributes
         record = plsql_record(attributes)
-        return [to_record(val, record, attributes) for val in value.aslist()]
+        return [to_record(val, record) for val in value.aslist()]
     return value.aslist()
 
 
@@ -288,17 +298,14 @@ def dict_converter(value):
     if value.type.elementType:
         attributes = value.type.elementType.attributes
         record = plsql_record(attributes)
-        return {
-            key: to_record(val, record, attributes)
-            for key, val in value.asdict().items()
-        }
+        return {key: to_record(val, record) for key, val in value.asdict().items()}
     return value.asdict()
 
 
 def record_converter(value, record=None):
     attributes = value.type.attributes
     record = record or plsql_record(attributes)
-    return to_record(value, record, attributes)
+    return to_record(value, record)
 
 
 converters = {

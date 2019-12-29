@@ -6,6 +6,12 @@ CREATE OR REPLACE PACKAGE test_return AS
         t_int_3 PLS_INTEGER
     );
 
+    TYPE tr_record_of_records IS RECORD (
+        t_int_1 PLS_INTEGER,
+        t_rec_2 tr_record,
+        t_rec_3 tr_record
+    );
+
     TYPE tt_nested IS TABLE OF PLS_INTEGER;
 
     TYPE tt_nested_of_records IS TABLE OF tr_record;
@@ -97,6 +103,9 @@ CREATE OR REPLACE PACKAGE test_return AS
     -- 250 PL/SQL RECORD                                    -- tuple - namedtuple
     FUNCTION ret_record
     RETURN tr_record;
+
+    FUNCTION ret_record_of_records
+    RETURN tr_record_of_records;
 
     -- 251 PL/SQL TABLE                                     -- mapping
     FUNCTION ret_plsql_table
