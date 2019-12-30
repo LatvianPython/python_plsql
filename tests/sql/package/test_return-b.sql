@@ -104,6 +104,17 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
         RETURN vt_nested_of_records;
     END ret_nested_of_records;
 
+    FUNCTION ret_nested_of_nested
+    RETURN tt_nested_of_nested IS
+        vt_nested_of_nested tt_nested_of_nested := tt_nested_of_nested();
+    BEGIN
+        FOR v_i IN 1 .. 10 LOOP
+            vt_nested_of_nested.extend;
+            vt_nested_of_nested(v_i) := ret_nested;
+        END LOOP;
+        RETURN vt_nested_of_nested;
+    END ret_nested_of_nested;
+
     -- 123 VARRAY                                           -- list
     --FUNCTION ret_binary_integer
     --RETURN BINARY_INTEGER;

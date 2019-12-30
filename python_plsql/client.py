@@ -289,8 +289,11 @@ def to_record(value, record):
 def list_converter(value):
     if value.type.elementType:
         attributes = value.type.elementType.attributes
-        record = plsql_record(attributes)
-        return [to_record(val, record) for val in value.aslist()]
+        if attributes:
+            record = plsql_record(attributes)
+            return [to_record(val, record) for val in value.aslist()]
+
+        return [list_converter(val) for val in value.aslist()]
     return value.aslist()
 
 
@@ -349,7 +352,7 @@ def python_type(
     }
 
     try:
-        return type_mapping[plsql_type.datatype]
+        return cursor.var(type_mapping[plsql_type.datatype])
     except KeyError:
         converter = converters[plsql_type.datatype]
 

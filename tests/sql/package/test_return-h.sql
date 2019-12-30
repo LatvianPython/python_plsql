@@ -16,6 +16,8 @@ CREATE OR REPLACE PACKAGE test_return AS
 
     TYPE tt_nested_of_records IS TABLE OF tr_record;
 
+    TYPE tt_nested_of_nested IS TABLE OF tt_nested;
+
     TYPE tt_plsql_table IS TABLE OF PLS_INTEGER INDEX BY PLS_INTEGER;
 
     TYPE tt_plsql_table_of_records IS TABLE OF tr_record INDEX BY PLS_INTEGER;
@@ -75,6 +77,9 @@ CREATE OR REPLACE PACKAGE test_return AS
 
     FUNCTION ret_nested_of_records
     RETURN tt_nested_of_records;
+
+    FUNCTION ret_nested_of_nested
+    RETURN tt_nested_of_nested;
 
     -- 123 VARRAY                                           -- list
     --FUNCTION ret_binary_integer

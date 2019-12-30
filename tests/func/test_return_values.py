@@ -19,6 +19,11 @@ import datetime
         ("ret_record_of_records", (42, (42, 84, 126), (42, 84, 126))),
         ("ret_nested", [i * 2 for i in range(1, 11)]),
         ("ret_nested_of_records", [(42, 84, 126) for i in range(1, 11)]),
+        pytest.param(
+            "ret_nested_of_nested",
+            [[i * 2 for i in range(1, 11)] for i in range(1, 11)],
+            marks=pytest.mark.skip(reason="Memory access violation"),
+        ),
         ("ret_plsql_table", {i: i for i in range(1, 11)}),
         ("ret_plsql_table_of_records", {i: (42, 84, 126) for i in range(1, 11)}),
     ],
