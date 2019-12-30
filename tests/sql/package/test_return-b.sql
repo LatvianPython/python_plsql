@@ -192,6 +192,16 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
         RETURN vt_plsql_table_of_records;
     END ret_plsql_table_of_records;
 
+    FUNCTION ret_plsql_table_of_plsql_table
+    RETURN tt_plsql_table_of_plsql_table IS
+        vt_plsql_table_of_plsql_table tt_plsql_table_of_plsql_table := tt_plsql_table_of_plsql_table();
+    BEGIN
+        FOR v_i IN 1 .. 10 LOOP
+            vt_plsql_table_of_plsql_table(v_i) := ret_plsql_table;
+        END LOOP;
+        RETURN vt_plsql_table_of_plsql_table;
+    END ret_plsql_table_of_plsql_table;
+
     -- 252 PL/SQL BOOLEAN                                   -- bool
     FUNCTION ret_bool
     RETURN BOOLEAN IS

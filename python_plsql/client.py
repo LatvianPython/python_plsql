@@ -300,8 +300,11 @@ def list_converter(value):
 def dict_converter(value):
     if value.type.elementType:
         attributes = value.type.elementType.attributes
-        record = plsql_record(attributes)
-        return {key: to_record(val, record) for key, val in value.asdict().items()}
+        if attributes:
+            record = plsql_record(attributes)
+            return {key: to_record(val, record) for key, val in value.asdict().items()}
+
+        return {key: dict_converter(val) for key, val in value.asdict().items()}
     return value.asdict()
 
 

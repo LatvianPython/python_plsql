@@ -20,6 +20,8 @@ CREATE OR REPLACE PACKAGE test_return AS
 
     TYPE tt_plsql_table IS TABLE OF PLS_INTEGER INDEX BY PLS_INTEGER;
 
+    TYPE tt_plsql_table_of_plsql_table IS TABLE OF tt_plsql_table INDEX BY PLS_INTEGER;
+
     TYPE tt_plsql_table_of_records IS TABLE OF tr_record INDEX BY PLS_INTEGER;
 
     TYPE tt_nested_of_plsql_table IS TABLE OF tt_plsql_table;
@@ -123,6 +125,9 @@ CREATE OR REPLACE PACKAGE test_return AS
 
     FUNCTION ret_plsql_table_of_records
     RETURN tt_plsql_table_of_records;
+
+    FUNCTION ret_plsql_table_of_plsql_table
+    RETURN tt_plsql_table_of_plsql_table;
 
     -- 252 PL/SQL BOOLEAN                                   -- bool
     FUNCTION ret_bool
