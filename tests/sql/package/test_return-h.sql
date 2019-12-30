@@ -22,6 +22,8 @@ CREATE OR REPLACE PACKAGE test_return AS
 
     TYPE tt_plsql_table_of_records IS TABLE OF tr_record INDEX BY PLS_INTEGER;
 
+    TYPE tt_nested_of_plsql_table IS TABLE OF tt_plsql_table;
+
     -- 0   placeholder for procedures with no arguments     -- ------||------
     -- 1   VARCHAR2, VARCHAR, STRING                        -- str
     FUNCTION ret_varchar
@@ -80,6 +82,9 @@ CREATE OR REPLACE PACKAGE test_return AS
 
     FUNCTION ret_nested_of_nested
     RETURN tt_nested_of_nested;
+
+    FUNCTION ret_nested_of_plsql_table
+    RETURN tt_nested_of_plsql_table;
 
     -- 123 VARRAY                                           -- list
     --FUNCTION ret_binary_integer

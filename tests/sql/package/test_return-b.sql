@@ -115,6 +115,17 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
         RETURN vt_nested_of_nested;
     END ret_nested_of_nested;
 
+    FUNCTION ret_nested_of_plsql_table
+    RETURN tt_nested_of_plsql_table IS
+        vt_nested_of_plsql_table tt_nested_of_plsql_table := tt_nested_of_plsql_table();
+    BEGIN
+        FOR v_i IN 1 .. 10 LOOP
+            vt_nested_of_plsql_table.extend;
+            vt_nested_of_plsql_table(v_i) := ret_plsql_table;
+        END LOOP;
+        RETURN vt_nested_of_plsql_table;
+    END ret_nested_of_plsql_table;
+
     -- 123 VARRAY                                           -- list
     --FUNCTION ret_binary_integer
     --RETURN BINARY_INTEGER;
