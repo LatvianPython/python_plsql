@@ -1,6 +1,10 @@
 import pytest
 import datetime
 
+RECORD = (42, 84, 126)
+NESTED = [i * 2 for i in range(1, 11)]
+PLSQL_TABLE = {i: i for i in range(1, 11)}
+
 
 @pytest.mark.parametrize(
     "func, expected",
@@ -15,25 +19,39 @@ import datetime
         ("ret_long_raw", b"42"),
         ("ret_char", "42"),
         ("ret_bool", True),
-        ("ret_record", (42, 84, 126)),
-        ("ret_record_of_records", (42, (42, 84, 126), (42, 84, 126))),
-        ("ret_nested", [i * 2 for i in range(1, 11)]),
-        ("ret_nested_of_records", [(42, 84, 126) for i in range(1, 11)]),
-        ("ret_plsql_table", {i: i for i in range(1, 11)}),
-        ("ret_plsql_table_of_records", {i: (42, 84, 126) for i in range(1, 11)}),
+        ("ret_record", RECORD),
+        ("ret_record_of_records", (42, RECORD, RECORD)),
+        ("ret_record_of_nested", (42, NESTED, NESTED),),
+        pytest.param(
+            "ret_record_of_plsql_table",
+            (42, PLSQL_TABLE, PLSQL_TABLE),
+            marks=pytest.mark.xfail(
+                reason="No current way to tell between NESTED and PLSQL tables for multi-layered types"
+            ),
+        ),
+        ("ret_nested", NESTED),
+        ("ret_nested_of_records", [RECORD] * 10),
+        ("ret_nested_of_record_of_nested", [(42, NESTED, NESTED)] * 10),
+        ("ret_plsql_table", PLSQL_TABLE),
+        ("ret_plsql_table_of_records", {i: RECORD for i in range(1, 11)}),
+        pytest.param(
+            "ret_plsql_table_of_nested",
+            {i: NESTED for i in range(1, 11)},
+            marks=pytest.mark.skip(reason="Memory access violation"),
+        ),
         pytest.param(
             "ret_nested_of_nested",
-            [[i * 2 for i in range(1, 11)] for i in range(1, 11)],
+            [NESTED] * 10,
             marks=pytest.mark.skip(reason="Memory access violation"),
         ),
         pytest.param(
             "ret_nested_of_plsql_table",
-            [{i: i for i in range(1, 11)} for i in range(1, 11)],
+            [PLSQL_TABLE] * 10,
             marks=pytest.mark.skip(reason="Memory access violation"),
         ),
         pytest.param(
             "ret_plsql_table_of_plsql_table",
-            {i: {j: j for j in range(1, 11)} for i in range(1, 11)},
+            {i: PLSQL_TABLE for i in range(1, 11)},
             marks=pytest.mark.skip(reason="Memory access violation"),
         ),
     ],

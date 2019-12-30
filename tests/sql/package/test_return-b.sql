@@ -126,6 +126,17 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
         RETURN vt_nested_of_plsql_table;
     END ret_nested_of_plsql_table;
 
+    FUNCTION ret_nested_of_record_of_nested
+    RETURN tt_nested_of_record_of_nested IS
+        vt_nested_of_record_of_nested tt_nested_of_record_of_nested := tt_nested_of_record_of_nested();
+    BEGIN
+        FOR v_i IN 1 .. 10 LOOP
+            vt_nested_of_record_of_nested.extend;
+            vt_nested_of_record_of_nested(v_i) := ret_record_of_nested;
+        END LOOP;
+        return vt_nested_of_record_of_nested;
+    END ret_nested_of_record_of_nested;
+
     -- 123 VARRAY                                           -- list
     --FUNCTION ret_binary_integer
     --RETURN BINARY_INTEGER;
@@ -171,6 +182,26 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
         RETURN vr_record_of_records;
     END ret_record_of_records;
 
+    FUNCTION ret_record_of_nested
+    RETURN tr_record_of_nested IS
+        vr_record_of_nested tr_record_of_nested;
+    BEGIN
+        vr_record_of_nested.t_int_1 := 42;
+        vr_record_of_nested.t_nes_2 := ret_nested;
+        vr_record_of_nested.t_nes_3 := ret_nested;
+        RETURN vr_record_of_nested;
+    END ret_record_of_nested;
+
+    FUNCTION ret_record_of_plsql_table
+    RETURN tr_record_of_plsql_table IS
+        vr_record_of_plsql_table tr_record_of_plsql_table;
+    BEGIN
+        vr_record_of_plsql_table.t_int_1 := 42;
+        vr_record_of_plsql_table.t_pls_2 := ret_plsql_table;
+        vr_record_of_plsql_table.t_pls_3 := ret_plsql_table;
+        RETURN vr_record_of_plsql_table;
+    END ret_record_of_plsql_table;
+
     -- 251 PL/SQL TABLE                                     -- mapping
     FUNCTION ret_plsql_table
     RETURN tt_plsql_table IS
@@ -191,6 +222,16 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
         END LOOP;
         RETURN vt_plsql_table_of_records;
     END ret_plsql_table_of_records;
+
+    FUNCTION ret_plsql_table_of_nested
+    RETURN tt_plsql_table_of_nested IS
+        vt_plsql_table_of_nested tt_plsql_table_of_nested;
+    BEGIN
+        FOR v_i IN 1 .. 10 LOOP
+            vt_plsql_table_of_nested(v_i) := ret_nested;
+        END LOOP;
+        RETURN vt_plsql_table_of_nested;
+    END ret_plsql_table_of_nested;
 
     FUNCTION ret_plsql_table_of_plsql_table
     RETURN tt_plsql_table_of_plsql_table IS

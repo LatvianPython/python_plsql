@@ -276,7 +276,9 @@ def plsql_record(attributes) -> Any:
 # noinspection PyTypeChecker
 def to_python(value):
     if isinstance(value, oracle.Object):
-        return record_converter(value)
+        if value.type.attributes:
+            return record_converter(value)
+        return list_converter(value)
     return value
 
 

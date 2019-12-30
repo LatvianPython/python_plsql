@@ -14,13 +14,29 @@ CREATE OR REPLACE PACKAGE test_return AS
 
     TYPE tt_nested IS TABLE OF PLS_INTEGER;
 
+    TYPE tr_record_of_nested IS RECORD (
+        t_int_1 PLS_INTEGER,
+        t_nes_2 tt_nested,
+        t_nes_3 tt_nested
+    );
+
     TYPE tt_nested_of_records IS TABLE OF tr_record;
 
     TYPE tt_nested_of_nested IS TABLE OF tt_nested;
 
     TYPE tt_plsql_table IS TABLE OF PLS_INTEGER INDEX BY PLS_INTEGER;
 
+    TYPE tr_record_of_plsql_table IS RECORD (
+        t_int_1 PLS_INTEGER,
+        t_pls_2 tt_plsql_table,
+        t_pls_3 tt_plsql_table
+    );
+
+    TYPE tt_nested_of_record_of_nested IS TABLE OF tr_record_of_nested;
+
     TYPE tt_plsql_table_of_plsql_table IS TABLE OF tt_plsql_table INDEX BY PLS_INTEGER;
+
+    TYPE tt_plsql_table_of_nested IS TABLE OF tt_nested INDEX BY PLS_INTEGER;
 
     TYPE tt_plsql_table_of_records IS TABLE OF tr_record INDEX BY PLS_INTEGER;
 
@@ -88,6 +104,9 @@ CREATE OR REPLACE PACKAGE test_return AS
     FUNCTION ret_nested_of_plsql_table
     RETURN tt_nested_of_plsql_table;
 
+    FUNCTION ret_nested_of_record_of_nested
+    RETURN tt_nested_of_record_of_nested;
+
     -- 123 VARRAY                                           -- list
     --FUNCTION ret_binary_integer
     --RETURN BINARY_INTEGER;
@@ -119,12 +138,21 @@ CREATE OR REPLACE PACKAGE test_return AS
     FUNCTION ret_record_of_records
     RETURN tr_record_of_records;
 
+    FUNCTION ret_record_of_nested
+    RETURN tr_record_of_nested;
+
+    FUNCTION ret_record_of_plsql_table
+    RETURN tr_record_of_plsql_table;
+
     -- 251 PL/SQL TABLE                                     -- mapping
     FUNCTION ret_plsql_table
     RETURN tt_plsql_table;
 
     FUNCTION ret_plsql_table_of_records
     RETURN tt_plsql_table_of_records;
+
+    FUNCTION ret_plsql_table_of_nested
+    RETURN tt_plsql_table_of_nested;
 
     FUNCTION ret_plsql_table_of_plsql_table
     RETURN tt_plsql_table_of_plsql_table;
