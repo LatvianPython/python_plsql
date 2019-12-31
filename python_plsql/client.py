@@ -278,7 +278,7 @@ def to_python(value):
     if isinstance(value, oracle.Object):
         if value.type.attributes:
             return record_converter(value)
-        return list_converter(value)
+        return list_converter(value)  # todo: list/dict
     return value
 
 
@@ -294,7 +294,7 @@ def list_converter(value):
         if attributes:
             record = plsql_record(attributes)
             return [to_record(val, record) for val in value.aslist()]
-
+        # todo: list/dict
         return [list_converter(val) for val in value.aslist()]
     return value.aslist()
 
@@ -305,7 +305,7 @@ def dict_converter(value):
         if attributes:
             record = plsql_record(attributes)
             return {key: to_record(val, record) for key, val in value.asdict().items()}
-
+        # todo: list/dict
         return {key: dict_converter(val) for key, val in value.asdict().items()}
     return value.asdict()
 
@@ -314,14 +314,6 @@ def record_converter(value, record=None):
     attributes = value.type.attributes
     record = record or plsql_record(attributes)
     return to_record(value, record)
-
-
-converters = {
-    122: list_converter,  # nested table
-    123: list_converter,  # varray
-    250: record_converter,  # plsql record
-    251: dict_converter,  # plsql table
-}
 
 
 def type_name(plsql: Database, resolved: ResolvedName, plsql_type: Argument):
@@ -348,6 +340,7 @@ def python_type(
         1: oracle.STRING,
         2: oracle.NUMBER,
         3: oracle.NATIVE_INT,
+        8: oracle.LONG_STRING,  # LONG
         11: oracle.ROWID,
         12: oracle.DATETIME,
         23: oracle.BINARY,
@@ -361,6 +354,13 @@ def python_type(
     try:
         return cursor.var(type_mapping[plsql_type.datatype])
     except KeyError:
+        converters = {
+            122: list_converter,  # nested table
+            123: list_converter,  # varray
+            250: record_converter,  # plsql record
+            251: dict_converter,  # plsql table
+        }
+
         converter = converters[plsql_type.datatype]
 
         object_type = plsql._connection.gettype(

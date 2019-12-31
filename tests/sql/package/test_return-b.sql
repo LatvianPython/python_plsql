@@ -1,19 +1,79 @@
+-- noinspection SqlDeprecateType
+
 CREATE OR REPLACE PACKAGE BODY test_return AS
 
     -- 0   placeholder for procedures with no arguments     -- ------||------
     -- 1   VARCHAR2, VARCHAR, STRING                        -- str
-    FUNCTION ret_varchar
+    FUNCTION ret_varchar2
     RETURN VARCHAR2 IS
+        v_varchar2 VARCHAR2(2) := '42';
     BEGIN
-        RETURN '42';
-    END;
+        RETURN v_varchar2;
+    END ret_varchar2;
+
+    FUNCTION ret_varchar
+    RETURN VARCHAR IS
+        v_varchar VARCHAR2(2) := '42';
+    BEGIN
+        RETURN v_varchar;
+    END ret_varchar;
+
+    FUNCTION ret_string
+    RETURN STRING IS
+        v_string STRING(2) := '42';
+    BEGIN
+        RETURN v_string;
+    END ret_string;
 
     -- 2   NUMBER, INTEGER, SMALLINT, REAL, FLOAT, DECIMAL  -- float
     FUNCTION ret_number
     RETURN NUMBER IS
+        v_number NUMBER := 42.42;
     BEGIN
-        RETURN 42.42;
-    END;
+        RETURN v_number;
+    END ret_number;
+
+    FUNCTION ret_integer
+    RETURN INTEGER IS
+        v_integer INTEGER := 42;
+    BEGIN
+        RETURN v_integer;
+    END ret_integer;
+
+    FUNCTION ret_smallint
+    RETURN SMALLINT IS
+        v_smallint SMALLINT := 42;
+    BEGIN
+        RETURN v_smallint;
+    END ret_smallint;
+
+    FUNCTION ret_real
+    RETURN REAL IS
+        v_real REAL := 42.42;
+    BEGIN
+        RETURN v_real;
+    END ret_real;
+
+    FUNCTION ret_float
+    RETURN FLOAT IS
+        v_float FLOAT := 42.42;
+    BEGIN
+        RETURN v_float;
+    END ret_float;
+
+    FUNCTION ret_numeric
+    RETURN NUMERIC IS
+        v_numeric NUMERIC := 42;
+    BEGIN
+        RETURN v_numeric;
+    END ret_numeric;
+
+    FUNCTION ret_decimal
+    RETURN DECIMAL IS
+        v_decimal DECIMAL := 42;
+    BEGIN
+        RETURN v_decimal;
+    END ret_decimal;
 
     -- 3   BINARY_INTEGER, PLS_INTEGER, POSITIVE, NATURAL   -- int
     FUNCTION ret_binary_integer
@@ -22,9 +82,33 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
         RETURN 42;
     END;
 
+    FUNCTION ret_pls_integer
+    RETURN PLS_INTEGER IS
+    BEGIN
+        RETURN 42;
+    END;
+
+    FUNCTION ret_positive
+    RETURN POSITIVE IS
+    BEGIN
+        RETURN 42;
+    END;
+
+    FUNCTION ret_natural
+    RETURN NATURAL IS
+    BEGIN
+        RETURN 42;
+    END;
+
     -- 8   LONG ?CLOB?                                      -- str
     FUNCTION ret_clob
     RETURN CLOB IS
+    BEGIN
+        RETURN '42';
+    END;
+
+    FUNCTION ret_long
+    RETURN LONG IS
     BEGIN
         RETURN '42';
     END;
@@ -69,6 +153,12 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
     -- 96  CHAR (ANSI FIXED CHAR), CHARACTER                -- str
     FUNCTION ret_char
     RETURN CHAR IS
+    BEGIN
+        RETURN '42';
+    END;
+
+    FUNCTION ret_character
+    RETURN CHARACTER IS
     BEGIN
         RETURN '42';
     END;

@@ -1,4 +1,4 @@
-CREATE OR REPLACE PACKAGE test_return AS
+CREATE OR REPLACE PACKAGE test_in_params AS
 
     TYPE tr_record IS RECORD (
         t_int_1 PLS_INTEGER,
@@ -50,167 +50,120 @@ CREATE OR REPLACE PACKAGE test_return AS
 
     -- 0   placeholder for procedures with no arguments     -- ------||------
     -- 1   VARCHAR2, VARCHAR, STRING                        -- str
-    FUNCTION ret_varchar2
-    RETURN VARCHAR2;
+    PROCEDURE in_varchar2(p_param IN VARCHAR2);
 
-    FUNCTION ret_varchar
-    RETURN VARCHAR;
+    PROCEDURE in_varchar(p_param IN VARCHAR);
 
-    FUNCTION ret_string
-    RETURN STRING;
+    PROCEDURE in_string(p_param IN STRING);
 
     -- 2   NUMBER, INTEGER, SMALLINT, REAL, FLOAT, DECIMAL  -- float
-    FUNCTION ret_number
-    RETURN NUMBER;
+    PROCEDURE in_number(p_param IN NUMBER);
 
-    FUNCTION ret_integer
-    RETURN INTEGER;
+    PROCEDURE in_integer(p_param IN INTEGER);
 
-    FUNCTION ret_smallint
-    RETURN SMALLINT;
+    PROCEDURE in_smallint(p_param IN SMALLINT);
 
-    FUNCTION ret_real
-    RETURN REAL;
+    PROCEDURE in_real(p_param IN REAL);
 
-    FUNCTION ret_float
-    RETURN FLOAT;
+    PROCEDURE in_float(p_param IN FLOAT);
 
-    FUNCTION ret_numeric
-    RETURN NUMERIC;
+    PROCEDURE in_numeric(p_param IN NUMERIC);
 
-    FUNCTION ret_decimal
-    RETURN DECIMAL;
+    PROCEDURE in_decimal(p_param IN DECIMAL);
 
     -- 3   BINARY_INTEGER, PLS_INTEGER, POSITIVE, NATURAL   -- int
-    FUNCTION ret_binary_integer
-    RETURN BINARY_INTEGER;
+    PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER);
 
-    FUNCTION ret_pls_integer
-    RETURN PLS_INTEGER;
+    PROCEDURE in_pls_integer(p_param IN PLS_INTEGER);
 
-    FUNCTION ret_positive
-    RETURN POSITIVE;
+    PROCEDURE in_positive(p_param IN POSITIVE);
 
-    FUNCTION ret_natural
-    RETURN NATURAL;
+    PROCEDURE in_natural(p_param IN NATURAL);
 
     -- 8   LONG ?CLOB?                                      -- str
-    FUNCTION ret_clob
-    RETURN CLOB;
+    PROCEDURE in_clob(p_param IN CLOB);
 
-    FUNCTION ret_long
-    RETURN LONG;
+    PROCEDURE in_long(p_param IN LONG);
 
     -- 11  ROWID                                            -- str
-    FUNCTION ret_rowid
-    RETURN ROWID;
+    PROCEDURE in_rowid(p_param IN ROWID);
 
     -- 12  DATE                                             -- datetime.datetime
-    FUNCTION ret_date
-    RETURN DATE;
+    PROCEDURE in_date(p_param IN DATE);
 
     -- 23  RAW                                              -- bytes
-    FUNCTION ret_raw
-    RETURN RAW;
+    PROCEDURE in_raw(p_param IN RAW);
 
     -- 24  LONG RAW                                         -- bytes
-    FUNCTION ret_long_raw
-    RETURN LONG RAW;
+    PROCEDURE in_long_raw(p_param IN LONG RAW);
 
     -- 58  OPAQUE TYPE                                      -- ??? XMLType in Oracle
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    --PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER);
 
     -- 96  CHAR (ANSI FIXED CHAR), CHARACTER                -- str
-    FUNCTION ret_char
-    RETURN CHAR;
+    PROCEDURE in_char(p_param IN CHAR);
 
-    FUNCTION ret_character
-    RETURN CHARACTER;
+    PROCEDURE in_character(p_param IN CHARACTER);
 
     -- 106 MLSLABEL                                         -- ??? only backwards compatibility ???
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    --PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER);
 
     -- 121 OBJECT                                           -- cx_Oracle.Object ???
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    --PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER);
 
     -- 122 NESTED TABLE                                     -- list
-    FUNCTION ret_nested
-    RETURN tt_nested;
+    PROCEDURE in_nested(p_param IN tt_nested);
 
-    FUNCTION ret_nested_of_records
-    RETURN tt_nested_of_records;
+    PROCEDURE in_nested_of_records(p_param IN tt_nested_of_records);
 
-    FUNCTION ret_nested_of_nested
-    RETURN tt_nested_of_nested;
+    PROCEDURE in_nested_of_nested(p_param IN tt_nested_of_nested);
 
-    FUNCTION ret_nested_of_plsql_table
-    RETURN tt_nested_of_plsql_table;
+    PROCEDURE in_nested_of_plsql_table(p_param IN tt_nested_of_plsql_table);
 
-    FUNCTION ret_nested_of_record_of_nested
-    RETURN tt_nested_of_record_of_nested;
+    PROCEDURE in_nested_of_record_of_nested(p_param IN tt_nested_of_record_of_nested);
 
     -- 123 VARRAY                                           -- list
-    FUNCTION ret_varray
-    RETURN tt_varray;
+    PROCEDURE in_varray(p_param IN tt_varray);
 
-    FUNCTION ret_varray_of_nested
-    RETURN tt_varray_of_nested;
+    PROCEDURE in_varray_of_nested(p_param IN tt_varray_of_nested);
 
-    FUNCTION ret_varray_of_plsql_table
-    RETURN tt_varray_of_plsql_table;
+    PROCEDURE in_varray_of_plsql_table(p_param IN tt_varray_of_plsql_table);
 
     -- 178 TIME                                             -- datetime.datetime
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    --PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER);
 
     -- 179 TIME WITH TIME ZONE                              -- datetime.datetime
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    --PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER);
 
     -- 180 TIMESTAMP                                        -- datetime.datetime
-    FUNCTION ret_timestamp
-    RETURN TIMESTAMP;
+    PROCEDURE in_timestamp(p_param IN TIMESTAMP);
 
     -- 181 TIMESTAMP WITH TIME ZONE                         -- datetime.datetime
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    --PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER);
 
     -- 231 TIMESTAMP WITH LOCAL TIME ZONE                   -- datetime.datetime
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    --PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER);
 
     -- 250 PL/SQL RECORD                                    -- tuple - namedtuple
-    FUNCTION ret_record
-    RETURN tr_record;
+    PROCEDURE in_record(p_param IN tr_record);
 
-    FUNCTION ret_record_of_records
-    RETURN tr_record_of_records;
+    PROCEDURE in_record_of_records(p_param IN tr_record_of_records);
 
-    FUNCTION ret_record_of_nested
-    RETURN tr_record_of_nested;
+    PROCEDURE in_record_of_nested(p_param IN tr_record_of_nested);
 
-    FUNCTION ret_record_of_plsql_table
-    RETURN tr_record_of_plsql_table;
+    PROCEDURE in_record_of_plsql_table(p_param IN tr_record_of_plsql_table);
 
     -- 251 PL/SQL TABLE                                     -- mapping
-    FUNCTION ret_plsql_table
-    RETURN tt_plsql_table;
+    PROCEDURE in_plsql_table(p_param IN tt_plsql_table);
 
-    FUNCTION ret_plsql_table_of_records
-    RETURN tt_plsql_table_of_records;
+    PROCEDURE in_plsql_table_of_records(p_param IN tt_plsql_table_of_records);
 
-    FUNCTION ret_plsql_table_of_nested
-    RETURN tt_plsql_table_of_nested;
+    PROCEDURE in_plsql_table_of_nested(p_param IN tt_plsql_table_of_nested);
 
-    FUNCTION ret_plsql_table_of_plsql_table
-    RETURN tt_plsql_table_of_plsql_table;
+    PROCEDURE in_plsql_table_of_plsql_table(p_param IN tt_plsql_table_of_plsql_table);
 
     -- 252 PL/SQL BOOLEAN                                   -- bool
-    FUNCTION ret_bool
-    RETURN BOOLEAN;
+    PROCEDURE in_bool(p_param IN BOOLEAN);
 
 
-END test_return;
+END test_in_params;
