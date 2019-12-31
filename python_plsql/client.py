@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import namedtuple
 from enum import IntEnum
+from functools import wraps
 from itertools import groupby
 from itertools import starmap
 from operator import attrgetter
@@ -10,9 +11,8 @@ from typing import Any
 from typing import Iterator
 from typing import List
 from typing import Optional
-from typing import Union
 from typing import Tuple
-from typing import NamedTuple
+from typing import Union
 
 import cx_Oracle as oracle
 
@@ -36,7 +36,7 @@ class ObjectTypes(IntEnum):
     type = 13
 
 
-class NotFound(Exception):
+class NotFound(AttributeError):
     pass
 
 
@@ -260,15 +260,6 @@ def group_by_overload(arguments: Iterator[Argument]) -> List[Overload]:
     ] or [Overload(arguments=[])]
 
 
-def filter_match(matches: Iterator[Overload]) -> Overload:
-    matches = list(matches)
-    if len(matches) > 1:
-        raise ValueError("Arguments matched with too many subprograms")
-    elif len(matches) == 0:
-        raise ValueError("Arguments do not match subprogram")
-    return matches[0]
-
-
 def plsql_record(attributes) -> Any:
     return namedtuple("Record", (attribute.name.lower() for attribute in attributes))
 
@@ -277,8 +268,8 @@ def plsql_record(attributes) -> Any:
 def to_python(value):
     if isinstance(value, oracle.Object):
         if value.type.attributes:
-            return record_converter(value)
-        return list_converter(value)  # todo: list/dict
+            return record_out_converter(value)
+        return list_out_converter(value)  # todo: list/dict
     return value
 
 
@@ -288,29 +279,29 @@ def to_record(value, record):
     )
 
 
-def list_converter(value):
+def list_out_converter(value):
     if value.type.elementType:
         attributes = value.type.elementType.attributes
         if attributes:
             record = plsql_record(attributes)
             return [to_record(val, record) for val in value.aslist()]
         # todo: list/dict
-        return [list_converter(val) for val in value.aslist()]
+        return [list_out_converter(val) for val in value.aslist()]
     return value.aslist()
 
 
-def dict_converter(value):
+def dict_out_coverter(value):
     if value.type.elementType:
         attributes = value.type.elementType.attributes
         if attributes:
             record = plsql_record(attributes)
             return {key: to_record(val, record) for key, val in value.asdict().items()}
         # todo: list/dict
-        return {key: dict_converter(val) for key, val in value.asdict().items()}
+        return {key: dict_out_coverter(val) for key, val in value.asdict().items()}
     return value.asdict()
 
 
-def record_converter(value, record=None):
+def record_out_converter(value, record=None):
     attributes = value.type.attributes
     record = record or plsql_record(attributes)
     return to_record(value, record)
@@ -324,6 +315,7 @@ def type_name(plsql: Database, resolved: ResolvedName, plsql_type: Argument):
      WHERE object_id = :object_id
        AND position = :position
        AND subprogram_id = :subprogram_id
+       AND data_level = 0
     """,
         object_id=resolved.object_id,
         position=plsql_type.position,
@@ -336,7 +328,7 @@ def type_name(plsql: Database, resolved: ResolvedName, plsql_type: Argument):
 def python_type(
     plsql: Database, cursor: oracle.Cursor, resolved: ResolvedName, plsql_type: Argument
 ):
-    type_mapping = {
+    plsql_types = {
         1: oracle.STRING,
         2: oracle.NUMBER,
         3: oracle.NATIVE_INT,
@@ -352,21 +344,53 @@ def python_type(
     }
 
     try:
-        return cursor.var(type_mapping[plsql_type.datatype])
+        return cursor.var(plsql_types[plsql_type.datatype])
     except KeyError:
-        converters = {
-            122: list_converter,  # nested table
-            123: list_converter,  # varray
-            250: record_converter,  # plsql record
-            251: dict_converter,  # plsql table
+        out_converters = {
+            122: list_out_converter,  # nested table
+            123: list_out_converter,  # varray
+            250: record_out_converter,  # plsql record
+            251: dict_out_coverter,  # plsql table
         }
 
-        converter = converters[plsql_type.datatype]
+        out_converter = out_converters[plsql_type.datatype]
 
         object_type = plsql._connection.gettype(
             type_name(plsql=plsql, resolved=resolved, plsql_type=plsql_type)
         )
-        return cursor.var(object_type, outconverter=converter)
+        return cursor.var(object_type, outconverter=out_converter)
+
+
+def find_matches(overloads, *positional, **named) -> Iterator[Overload]:
+    return (overload for overload in overloads if overload.match(*positional, **named))
+
+
+def filter_matches(filter_function, matches: Iterator[Overload]) -> Overload:
+    matches = list(filter(filter_function, matches))
+    if len(matches) > 1:
+        raise ValueError("Arguments matched with too many subprograms")
+    elif len(matches) == 0:
+        raise ValueError("Arguments do not match subprogram")
+    return matches[0]
+
+
+def translate_arguments(match_function):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self: Subprogram, *positional, **named):
+            match = filter_matches(
+                match_function, find_matches(self.overloads, *positional, **named)
+            )
+
+            with self._plsql._connection.cursor() as cursor:
+                result = func(self, match, cursor, positional, named)
+
+            if match.is_function:
+                return result
+
+        return wrapper
+
+    return decorator
 
 
 class Subprogram:
@@ -379,50 +403,35 @@ class Subprogram:
             group_by_overload(arguments=arguments),
         )
 
-    def _call_function(self, *args, **kwargs):
-        match = filter_match(self._function_matches(*args, **kwargs))
+    @translate_arguments(match_function=lambda x: x.is_function)
+    def _call_function(self, match: Overload, cursor, positional, named):
+        return cursor.callfunc(
+            self.resolved.name,
+            python_type(
+                plsql=self._plsql,
+                cursor=cursor,
+                resolved=self.resolved,
+                plsql_type=match.return_type,
+            ),
+            positional,
+            named,
+        )
 
-        with self._plsql._connection.cursor() as cursor:
-            return cursor.callfunc(
-                self.resolved.name,
-                python_type(
-                    plsql=self._plsql,
-                    cursor=cursor,
-                    resolved=self.resolved,
-                    plsql_type=match.return_type,
-                ),
-                args,
-                kwargs,
-            )
-
-    def _call_procedure(self, *args, **kwargs):
-        _ = filter_match(self._procedure_matches(*args, **kwargs))
-
-        with self._plsql._connection.cursor() as cursor:
-            cursor.callproc(self.resolved.name, args, kwargs)
+    @translate_arguments(match_function=lambda x: not x.is_function)
+    def _call_procedure(self, match: Overload, cursor, positional, named):
+        _ = match
+        cursor.callproc(self.resolved.name, positional, named)
 
     def __call__(self, *args, **kwargs):
         if self.overloaded and self.is_function and self.is_procedure:
             raise NotImplementedError(
-                "Subprogram is overloaded as a function and procedure, use _call_(procedure/function) method"
+                "Subprogram is overloaded as a function and procedure, use _call_procedure or _call_function methods"
             )
 
         if self.is_function:
             return self._call_function(*args, **kwargs)
         else:
             return self._call_procedure(*args, **kwargs)
-
-    def _function_matches(self, *args, **kwargs) -> Iterator[Overload]:
-        return filter(lambda x: x.is_function, self._matches(*args, **kwargs))
-
-    def _procedure_matches(self, *args, **kwargs) -> Iterator[Overload]:
-        return filter(lambda x: not x.is_function, self._matches(*args, **kwargs))
-
-    def _matches(self, *args, **kwargs) -> Iterator[Overload]:
-        """returns overloads that match with provided parameters"""
-        return (
-            overload for overload in self.overloads if overload.match(*args, **kwargs)
-        )
 
     @property
     def overloaded(self) -> bool:
@@ -496,7 +505,7 @@ class Database:
         except (oracle.DatabaseError, NotFound):
             if self.is_schema(schema_name=item):
                 return Schema(plsql=self, name=item)
-            raise
+            raise NotFound
         else:
             if found_object := search_object(plsql=self, name=name, item=item):
                 return found_object
