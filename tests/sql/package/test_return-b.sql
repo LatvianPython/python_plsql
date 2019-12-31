@@ -138,8 +138,33 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
     END ret_nested_of_record_of_nested;
 
     -- 123 VARRAY                                           -- list
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    FUNCTION ret_varray
+    RETURN tt_varray IS
+    BEGIN
+        RETURN tt_varray(10, 9, 8, 7, 6, 5, 4, 3, 2, 1);
+    END ret_varray;
+
+    FUNCTION ret_varray_of_nested
+    RETURN tt_varray_of_nested IS
+        vt_varray_of_nested tt_varray_of_nested := tt_varray_of_nested();
+    BEGIN
+        FOR v_i IN 1 .. 10 LOOP
+            vt_varray_of_nested.extend;
+            vt_varray_of_nested(v_i) := ret_nested;
+        END LOOP;
+        RETURN vt_varray_of_nested;
+    END ret_varray_of_nested;
+
+    FUNCTION ret_varray_of_plsql_table
+    RETURN tt_varray_of_plsql_table IS
+        vt_varray_of_plsql_table tt_varray_of_plsql_table := tt_varray_of_plsql_table();
+    BEGIN
+        FOR v_i IN 1 .. 10 LOOP
+            vt_varray_of_plsql_table.extend;
+            vt_varray_of_plsql_table(v_i) := ret_plsql_table;
+        END LOOP;
+        RETURN vt_varray_of_plsql_table;
+    END ret_varray_of_plsql_table;
 
     -- 178 TIME                                             -- datetime.datetime
     --FUNCTION ret_binary_integer
@@ -150,8 +175,11 @@ CREATE OR REPLACE PACKAGE BODY test_return AS
     --RETURN BINARY_INTEGER;
 
     -- 180 TIMESTAMP                                        -- datetime.datetime
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    FUNCTION ret_timestamp
+    RETURN TIMESTAMP IS
+    BEGIN
+        RETURN to_timestamp(ret_date);
+    END ret_timestamp;
 
     -- 181 TIMESTAMP WITH TIME ZONE                         -- datetime.datetime
     --FUNCTION ret_binary_integer

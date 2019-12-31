@@ -42,6 +42,12 @@ CREATE OR REPLACE PACKAGE test_return AS
 
     TYPE tt_nested_of_plsql_table IS TABLE OF tt_plsql_table;
 
+    TYPE tt_varray IS VARRAY(10) OF PLS_INTEGER;
+
+    TYPE tt_varray_of_nested IS VARRAY(10) OF tt_nested;
+
+    TYPE tt_varray_of_plsql_table IS VARRAY(10) OF tt_plsql_table;
+
     -- 0   placeholder for procedures with no arguments     -- ------||------
     -- 1   VARCHAR2, VARCHAR, STRING                        -- str
     FUNCTION ret_varchar
@@ -108,8 +114,14 @@ CREATE OR REPLACE PACKAGE test_return AS
     RETURN tt_nested_of_record_of_nested;
 
     -- 123 VARRAY                                           -- list
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    FUNCTION ret_varray
+    RETURN tt_varray;
+
+    FUNCTION ret_varray_of_nested
+    RETURN tt_varray_of_nested;
+
+    FUNCTION ret_varray_of_plsql_table
+    RETURN tt_varray_of_plsql_table;
 
     -- 178 TIME                                             -- datetime.datetime
     --FUNCTION ret_binary_integer
@@ -120,8 +132,8 @@ CREATE OR REPLACE PACKAGE test_return AS
     --RETURN BINARY_INTEGER;
 
     -- 180 TIMESTAMP                                        -- datetime.datetime
-    --FUNCTION ret_binary_integer
-    --RETURN BINARY_INTEGER;
+    FUNCTION ret_timestamp
+    RETURN TIMESTAMP;
 
     -- 181 TIMESTAMP WITH TIME ZONE                         -- datetime.datetime
     --FUNCTION ret_binary_integer

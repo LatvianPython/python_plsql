@@ -317,9 +317,10 @@ def record_converter(value, record=None):
 
 
 converters = {
-    122: list_converter,
-    250: record_converter,
-    251: dict_converter,
+    122: list_converter,  # nested table
+    123: list_converter,  # varray
+    250: record_converter,  # plsql record
+    251: dict_converter,  # plsql table
 }
 
 
@@ -353,6 +354,7 @@ def python_type(
         24: oracle.LONG_BINARY,
         96: oracle.STRING,  # oracle.FIXED_CHAR
         112: oracle.STRING,  # oracle.CLOB
+        180: oracle.TIMESTAMP,
         252: oracle.BOOLEAN,
     }
 
