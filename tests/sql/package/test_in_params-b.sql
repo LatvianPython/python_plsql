@@ -2,113 +2,120 @@
 
 CREATE OR REPLACE PACKAGE BODY test_in_params AS
 
+    PROCEDURE err(p_throw IN BOOLEAN) IS
+    BEGIN
+        IF p_throw THEN
+            raise_application_error(-20001, 'not equal');
+        END IF;
+    END err;
+
     -- 0   placeholder for procedures with no arguments     -- ------||------
     -- 1   VARCHAR2, VARCHAR, STRING                        -- str
     PROCEDURE in_varchar2(p_param IN VARCHAR2) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_varchar2);
     END in_varchar2;
 
     PROCEDURE in_varchar(p_param IN VARCHAR) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_varchar);
     END in_varchar;
 
     PROCEDURE in_string(p_param IN STRING) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_string);
     END in_string;
 
     -- 2   NUMBER, INTEGER, SMALLINT, REAL, FLOAT, DECIMAL  -- float
     PROCEDURE in_number(p_param IN NUMBER) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_number);
     END in_number;
 
     PROCEDURE in_integer(p_param IN INTEGER) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_integer);
     END in_integer;
 
     PROCEDURE in_smallint(p_param IN SMALLINT) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_smallint);
     END in_smallint;
 
     PROCEDURE in_real(p_param IN REAL) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_real);
     END in_real;
 
     PROCEDURE in_float(p_param IN FLOAT) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_float);
     END in_float;
 
     PROCEDURE in_numeric(p_param IN NUMERIC) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_numeric);
     END in_numeric;
 
     PROCEDURE in_decimal(p_param IN DECIMAL) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_decimal);
     END in_decimal;
 
     -- 3   BINARY_INTEGER, PLS_INTEGER, POSITIVE, NATURAL   -- int
     PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_binary_integer);
     END;
 
     PROCEDURE in_pls_integer(p_param IN PLS_INTEGER) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_pls_integer);
     END;
 
     PROCEDURE in_positive(p_param IN POSITIVE) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_positive);
     END;
 
     PROCEDURE in_natural(p_param IN NATURAL) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_natural);
     END;
 
     -- 8   LONG ?CLOB?                                      -- str
     PROCEDURE in_clob(p_param IN CLOB) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_clob);
     END;
 
     PROCEDURE in_long(p_param IN LONG) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_long);
     END;
 
     -- 11  ROWID                                            -- str
     PROCEDURE in_rowid(p_param IN ROWID) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_rowid);
     END;
 
     -- 12  DATE                                             -- datetime.datetime
     PROCEDURE in_date(p_param IN DATE) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_date);
     END;
 
     -- 23  RAW                                              -- bytes
     PROCEDURE in_raw(p_param IN RAW) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_raw);
     END;
 
     -- 24  LONG RAW                                         -- bytes
     PROCEDURE in_long_raw(p_param IN LONG RAW) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_long_raw);
     END;
 
     -- 58  OPAQUE TYPE                                      -- ??? XMLType in Oracle
@@ -117,12 +124,12 @@ CREATE OR REPLACE PACKAGE BODY test_in_params AS
     -- 96  CHAR (ANSI FIXED CHAR), CHARACTER                -- str
     PROCEDURE in_char(p_param IN CHAR) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_char);
     END;
 
     PROCEDURE in_character(p_param IN CHARACTER) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_character);
     END;
 
     -- 106 MLSLABEL                                         -- ??? only backwards compatibility ???
@@ -182,7 +189,7 @@ CREATE OR REPLACE PACKAGE BODY test_in_params AS
     -- 180 TIMESTAMP                                        -- datetime.datetime
     PROCEDURE in_timestamp(p_param IN TIMESTAMP) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_timestamp);
     END in_timestamp;
 
     -- 181 TIMESTAMP WITH TIME ZONE                         -- datetime.datetime
@@ -236,7 +243,7 @@ CREATE OR REPLACE PACKAGE BODY test_in_params AS
     -- 252 PL/SQL BOOLEAN                                   -- bool
     PROCEDURE in_bool(p_param IN BOOLEAN) IS
     BEGIN
-        NULL;
+        err(p_param != test_return.ret_bool);
     END;
 
 
