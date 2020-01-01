@@ -158,14 +158,18 @@ CREATE OR REPLACE PACKAGE BODY test_in_params AS
 
     PROCEDURE in_nested_of_nested(p_param IN test_return.tt_nested_of_nested) IS
     BEGIN
-        err(TRUE);
         err(p_param.COUNT != test_return.ret_nested_of_nested().COUNT);
+        FOR v_i IN p_param.FIRST .. p_param.LAST LOOP
+            in_nested(p_param(v_i));
+        END LOOP;
     END in_nested_of_nested;
 
     PROCEDURE in_nested_of_plsql_table(p_param IN test_return.tt_nested_of_plsql_table) IS
     BEGIN
-        err(TRUE);
         err(p_param.COUNT != test_return.ret_nested_of_plsql_table().COUNT);
+        FOR v_i IN p_param.FIRST .. p_param.LAST LOOP
+            in_plsql_table(p_param(v_i));
+        END LOOP;
     END in_nested_of_plsql_table;
 
     PROCEDURE in_nested_of_record_of_nested(p_param IN test_return.tt_nested_of_record_of_nested) IS
@@ -188,14 +192,18 @@ CREATE OR REPLACE PACKAGE BODY test_in_params AS
 
     PROCEDURE in_varray_of_nested(p_param IN test_return.tt_varray_of_nested) IS
     BEGIN
-        err(TRUE);
         err(p_param.COUNT != test_return.ret_varray_of_nested().COUNT);
+        FOR v_i IN p_param.FIRST .. p_param.LAST LOOP
+            in_nested(p_param(v_i));
+        END LOOP;
     END in_varray_of_nested;
 
     PROCEDURE in_varray_of_plsql_table(p_param IN test_return.tt_varray_of_plsql_table) IS
     BEGIN
-        err(TRUE);
         err(p_param.COUNT != test_return.ret_varray_of_plsql_table().COUNT);
+        FOR v_i IN p_param.FIRST .. p_param.LAST LOOP
+            in_plsql_table(p_param(v_i));
+        END LOOP;
     END in_varray_of_plsql_table;
 
     -- 178 TIME                                             -- datetime.datetime
@@ -228,7 +236,6 @@ CREATE OR REPLACE PACKAGE BODY test_in_params AS
     PROCEDURE in_record_of_records(p_param IN test_return.tr_record_of_records) IS
         vr_record_of_records test_return.tr_record_of_records := test_return.ret_record_of_records();
     BEGIN
---         err(TRUE);
         err(p_param.t_int_1 != vr_record_of_records.t_int_1);
         in_record(p_param.t_rec_2);
         in_record(p_param.t_rec_3);
@@ -270,14 +277,18 @@ CREATE OR REPLACE PACKAGE BODY test_in_params AS
 
     PROCEDURE in_plsql_table_of_nested(p_param IN test_return.tt_plsql_table_of_nested) IS
     BEGIN
-        err(TRUE);
         err(p_param.COUNT != test_return.ret_plsql_table_of_nested().COUNT);
+        FOR v_i IN p_param.FIRST .. p_param.LAST LOOP
+            in_nested(p_param(v_i));
+        END LOOP;
     END in_plsql_table_of_nested;
 
     PROCEDURE in_plsql_table_of_plsql_table(p_param IN test_return.tt_plsql_table_of_plsql_table) IS
     BEGIN
-        err(TRUE);
         err(p_param.COUNT != test_return.ret_plsql_table_of_plsql_table().COUNT);
+        FOR v_i IN p_param.FIRST .. p_param.LAST LOOP
+            in_plsql_table(p_param(v_i));
+        END LOOP;
     END in_plsql_table_of_plsql_table;
 
     -- 252 PL/SQL BOOLEAN                                   -- bool

@@ -274,7 +274,7 @@ def to_python(value):
     if isinstance(value, oracle.Object):
         if value.type.attributes:
             return record_out_converter(value)
-        if is_list_type(value.type):
+        elif is_list(value.type):
             return list_out_converter(value)
         return dict_out_coverter(value)
     return value
@@ -330,34 +330,35 @@ def type_name(plsql: Database, resolved: ResolvedName, plsql_type: Argument):
     return ".".join(argument_type_name)
 
 
-def in_converter(object_type):
+def convert(object_type, value):
+    if object_type:
+        return make_in_converter(object_type)(value)
+    return value
+
+
+def make_in_converter(object_type):
     def _in_converter(value):
         var = object_type.newobject()
 
-        for attribute, val in zip(object_type.attributes, value):
-            # todo: self made change to ObjectAttr.c (cx_Oracle should implement this)
-            if attribute.type:
-                val = in_converter(attribute.type)(val)
-            setattr(var, attribute.name, val)
-
         if object_type.iscollection:
-            if is_list_type(object_type):
+            if is_list(object_type):
                 for val in value:
-                    if object_type.elementType:
-                        val = in_converter(object_type.elementType)(val)
-                    var.append(val)
+                    var.append(convert(object_type.elementType, val))
             else:
                 for key, val in value.items():
-                    if object_type.elementType:
-                        val = in_converter(object_type.elementType)(val)
-                    var.setelement(key, val)
+                    var.setelement(key, convert(object_type.elementType, val))
+        else:
+            for attribute, val in zip(object_type.attributes, value):
+                # todo: self made change to ObjectAttr.c (cx_Oracle should implement this)
+                #  type is not accessible by default..
+                setattr(var, attribute.name, convert(attribute.type, val))
 
         return var
 
     return _in_converter
 
 
-def is_list_type(object_type: oracle.ObjectType) -> bool:
+def is_list(object_type: oracle.ObjectType) -> bool:
     # todo: should ask cx_Oracle if there is a better way
     obj = object_type.newobject()
     try:
@@ -366,6 +367,32 @@ def is_list_type(object_type: oracle.ObjectType) -> bool:
         return True
     else:
         return False
+
+
+class SimpleVar:
+    def __init__(self, cursor, object_type):
+        self.cursor, self.object_type = cursor, object_type
+
+    def to_oracle(self, value):
+        var = self.cursor.var(self.object_type)
+        var.setvalue(0, value)
+        return var
+
+    @staticmethod
+    def from_oracle(var):
+        return var
+
+
+class UserVar:
+    def __init__(self, in_converter):
+        self.in_converter = in_converter
+
+    def to_oracle(self, value):
+        return self.in_converter(value)
+
+    @staticmethod
+    def from_oracle(value):
+        return to_python(value)
 
 
 def cursor_var(
@@ -387,23 +414,22 @@ def cursor_var(
     }
 
     try:
-        return cursor.var(plsql_types[plsql_type.datatype])
+        object_type = plsql_types[plsql_type.datatype]
     except KeyError:
-        out_converters = {
-            122: list_out_converter,  # nested table
-            123: list_out_converter,  # varray
-            250: record_out_converter,  # plsql record
-            251: dict_out_coverter,  # plsql table
-        }
+        # nested table # varray # plsql record # plsql table
+        if plsql_type.datatype not in {122, 123, 250, 251}:
+            raise
 
         object_type = plsql._connection.gettype(
             type_name(plsql=plsql, resolved=resolved, plsql_type=plsql_type)
         )
-        return cursor.var(
+
+        return (
             object_type,
-            outconverter=out_converters[plsql_type.datatype],
-            inconverter=in_converter(object_type),
+            UserVar(make_in_converter(object_type)),
         )
+    else:
+        return object_type, SimpleVar(cursor, object_type)
 
 
 def find_match(
@@ -434,17 +460,20 @@ def translate_arguments(match_filter):
 
                 wrapped_positional = []
                 for value, argument in zip(positional, match.arguments):
-                    pos = cursor_var(self._plsql, cursor, self.resolved, argument)
-                    pos.setvalue(0, value)
-                    wrapped_positional.append(pos)
+                    _, converter = cursor_var(
+                        self._plsql, cursor, self.resolved, argument
+                    )
+
+                    wrapped_positional.append(converter.to_oracle(value))
 
                 wrapped_named = {}
                 for key, value in named.items():
                     argument = match.argument(key)
                     if argument:
-                        nam = cursor_var(self._plsql, cursor, self.resolved, argument)
-                        nam.setvalue(0, value)
-                        wrapped_named[key] = nam
+                        _, converter = cursor_var(
+                            self._plsql, cursor, self.resolved, argument
+                        )
+                        wrapped_named[key] = converter.to_oracle(value)
 
                 result = func(self, match, cursor, wrapped_positional, wrapped_named)
 
@@ -468,17 +497,15 @@ class Subprogram:
 
     @translate_arguments(match_filter=lambda x: x.is_function)
     def _call_function(self, match: Overload, cursor, positional, named):
-        return cursor.callfunc(
-            self.resolved.name,
-            cursor_var(
-                plsql=self._plsql,
-                cursor=cursor,
-                resolved=self.resolved,
-                plsql_type=match.return_type,
-            ),
-            positional,
-            named,
+        object_type, converter = cursor_var(
+            plsql=self._plsql,
+            cursor=cursor,
+            resolved=self.resolved,
+            plsql_type=match.return_type,
         )
+
+        result = cursor.callfunc(self.resolved.name, object_type, positional, named)
+        return converter.from_oracle(result)
 
     @translate_arguments(match_filter=lambda x: not x.is_function)
     def _call_procedure(self, match: Overload, cursor, positional, named):

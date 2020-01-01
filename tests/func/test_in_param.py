@@ -50,36 +50,12 @@ PLSQL_TABLE = {i: i for i in range(1, 11)}
         ("in_varray", VARRAY),
         ("in_plsql_table", PLSQL_TABLE),
         ("in_plsql_table_of_records", {i: RECORD for i in range(1, 11)}),
-        pytest.param(
-            "in_varray_of_plsql_table",
-            [PLSQL_TABLE] * 10,
-            marks=pytest.mark.skip(reason="Memory access violation"),
-        ),
-        pytest.param(
-            "in_varray_of_nested",
-            [NESTED] * 10,
-            marks=pytest.mark.skip(reason="Memory access violation"),
-        ),
-        pytest.param(
-            "in_plsql_table_of_nested",
-            {i: NESTED for i in range(1, 11)},
-            marks=pytest.mark.skip(reason="Memory access violation"),
-        ),
-        pytest.param(
-            "in_nested_of_nested",
-            [NESTED] * 10,
-            marks=pytest.mark.skip(reason="Memory access violation"),
-        ),
-        pytest.param(
-            "in_nested_of_plsql_table",
-            [PLSQL_TABLE] * 10,
-            marks=pytest.mark.skip(reason="Memory access violation"),
-        ),
-        pytest.param(
-            "in_plsql_table_of_plsql_table",
-            {i: PLSQL_TABLE for i in range(1, 11)},
-            marks=pytest.mark.skip(reason="Memory access violation"),
-        ),
+        ("in_varray_of_plsql_table", [PLSQL_TABLE] * 10,),
+        ("in_varray_of_nested", [NESTED] * 10,),
+        ("in_plsql_table_of_nested", {i: NESTED for i in range(1, 11)},),
+        ("in_nested_of_nested", [NESTED] * 10,),
+        ("in_nested_of_plsql_table", [PLSQL_TABLE] * 10,),
+        ("in_plsql_table_of_plsql_table", {i: PLSQL_TABLE for i in range(1, 11)},),
     ],
 )
 def test_return_values(plsql, func, in_value):
