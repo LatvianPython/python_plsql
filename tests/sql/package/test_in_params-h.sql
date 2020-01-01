@@ -1,53 +1,5 @@
 CREATE OR REPLACE PACKAGE test_in_params AS
 
-    TYPE tr_record IS RECORD (
-        t_int_1 PLS_INTEGER,
-        t_int_2 PLS_INTEGER,
-        t_int_3 PLS_INTEGER
-    );
-
-    TYPE tr_record_of_records IS RECORD (
-        t_int_1 PLS_INTEGER,
-        t_rec_2 tr_record,
-        t_rec_3 tr_record
-    );
-
-    TYPE tt_nested IS TABLE OF PLS_INTEGER;
-
-    TYPE tr_record_of_nested IS RECORD (
-        t_int_1 PLS_INTEGER,
-        t_nes_2 tt_nested,
-        t_nes_3 tt_nested
-    );
-
-    TYPE tt_nested_of_records IS TABLE OF tr_record;
-
-    TYPE tt_nested_of_nested IS TABLE OF tt_nested;
-
-    TYPE tt_plsql_table IS TABLE OF PLS_INTEGER INDEX BY PLS_INTEGER;
-
-    TYPE tr_record_of_plsql_table IS RECORD (
-        t_int_1 PLS_INTEGER,
-        t_pls_2 tt_plsql_table,
-        t_pls_3 tt_plsql_table
-    );
-
-    TYPE tt_nested_of_record_of_nested IS TABLE OF tr_record_of_nested;
-
-    TYPE tt_plsql_table_of_plsql_table IS TABLE OF tt_plsql_table INDEX BY PLS_INTEGER;
-
-    TYPE tt_plsql_table_of_nested IS TABLE OF tt_nested INDEX BY PLS_INTEGER;
-
-    TYPE tt_plsql_table_of_records IS TABLE OF tr_record INDEX BY PLS_INTEGER;
-
-    TYPE tt_nested_of_plsql_table IS TABLE OF tt_plsql_table;
-
-    TYPE tt_varray IS VARRAY(10) OF PLS_INTEGER;
-
-    TYPE tt_varray_of_nested IS VARRAY(10) OF tt_nested;
-
-    TYPE tt_varray_of_plsql_table IS VARRAY(10) OF tt_plsql_table;
-
     -- 0   placeholder for procedures with no arguments     -- ------||------
     -- 1   VARCHAR2, VARCHAR, STRING                        -- str
     PROCEDURE in_varchar2(p_param IN VARCHAR2);
@@ -112,22 +64,22 @@ CREATE OR REPLACE PACKAGE test_in_params AS
     --PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER);
 
     -- 122 NESTED TABLE                                     -- list
-    PROCEDURE in_nested(p_param IN tt_nested);
+    PROCEDURE in_nested(p_param IN test_return.tt_nested);
 
-    PROCEDURE in_nested_of_records(p_param IN tt_nested_of_records);
+    PROCEDURE in_nested_of_records(p_param IN test_return.tt_nested_of_records);
 
-    PROCEDURE in_nested_of_nested(p_param IN tt_nested_of_nested);
+    PROCEDURE in_nested_of_nested(p_param IN test_return.tt_nested_of_nested);
 
-    PROCEDURE in_nested_of_plsql_table(p_param IN tt_nested_of_plsql_table);
+    PROCEDURE in_nested_of_plsql_table(p_param IN test_return.tt_nested_of_plsql_table);
 
-    PROCEDURE in_nested_of_record_of_nested(p_param IN tt_nested_of_record_of_nested);
+    PROCEDURE in_nested_of_record_of_nested(p_param IN test_return.tt_nested_of_record_of_nested);
 
     -- 123 VARRAY                                           -- list
-    PROCEDURE in_varray(p_param IN tt_varray);
+    PROCEDURE in_varray(p_param IN test_return.tt_varray);
 
-    PROCEDURE in_varray_of_nested(p_param IN tt_varray_of_nested);
+    PROCEDURE in_varray_of_nested(p_param IN test_return.tt_varray_of_nested);
 
-    PROCEDURE in_varray_of_plsql_table(p_param IN tt_varray_of_plsql_table);
+    PROCEDURE in_varray_of_plsql_table(p_param IN test_return.tt_varray_of_plsql_table);
 
     -- 178 TIME                                             -- datetime.datetime
     --PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER);
@@ -145,22 +97,22 @@ CREATE OR REPLACE PACKAGE test_in_params AS
     --PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER);
 
     -- 250 PL/SQL RECORD                                    -- tuple - namedtuple
-    PROCEDURE in_record(p_param IN tr_record);
+    PROCEDURE in_record(p_param IN test_return.tr_record);
 
-    PROCEDURE in_record_of_records(p_param IN tr_record_of_records);
+    PROCEDURE in_record_of_records(p_param IN test_return.tr_record_of_records);
 
-    PROCEDURE in_record_of_nested(p_param IN tr_record_of_nested);
+    PROCEDURE in_record_of_nested(p_param IN test_return.tr_record_of_nested);
 
-    PROCEDURE in_record_of_plsql_table(p_param IN tr_record_of_plsql_table);
+    PROCEDURE in_record_of_plsql_table(p_param IN test_return.tr_record_of_plsql_table);
 
     -- 251 PL/SQL TABLE                                     -- mapping
-    PROCEDURE in_plsql_table(p_param IN tt_plsql_table);
+    PROCEDURE in_plsql_table(p_param IN test_return.tt_plsql_table);
 
-    PROCEDURE in_plsql_table_of_records(p_param IN tt_plsql_table_of_records);
+    PROCEDURE in_plsql_table_of_records(p_param IN test_return.tt_plsql_table_of_records);
 
-    PROCEDURE in_plsql_table_of_nested(p_param IN tt_plsql_table_of_nested);
+    PROCEDURE in_plsql_table_of_nested(p_param IN test_return.tt_plsql_table_of_nested);
 
-    PROCEDURE in_plsql_table_of_plsql_table(p_param IN tt_plsql_table_of_plsql_table);
+    PROCEDURE in_plsql_table_of_plsql_table(p_param IN test_return.tt_plsql_table_of_plsql_table);
 
     -- 252 PL/SQL BOOLEAN                                   -- bool
     PROCEDURE in_bool(p_param IN BOOLEAN);

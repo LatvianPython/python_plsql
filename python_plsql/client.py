@@ -248,6 +248,11 @@ class Overload:
     def match(self, *args, **kwargs) -> bool:
         return (len(args) + len(kwargs)) == len(self.arguments)
 
+    def argument(self, name: str) -> Optional[Argument]:
+        for argument in self.arguments:
+            if argument.argument_name == name.upper():
+                return argument
+
     @property
     def is_function(self) -> bool:
         return bool(self.return_type)
@@ -269,7 +274,9 @@ def to_python(value):
     if isinstance(value, oracle.Object):
         if value.type.attributes:
             return record_out_converter(value)
-        return list_out_converter(value)  # todo: list/dict
+        if is_list_type(value.type):
+            return list_out_converter(value)
+        return dict_out_coverter(value)
     return value
 
 
@@ -285,8 +292,7 @@ def list_out_converter(value):
         if attributes:
             record = plsql_record(attributes)
             return [to_record(val, record) for val in value.aslist()]
-        # todo: list/dict
-        return [list_out_converter(val) for val in value.aslist()]
+        return [to_python(val) for val in value.aslist()]
     return value.aslist()
 
 
@@ -296,8 +302,7 @@ def dict_out_coverter(value):
         if attributes:
             record = plsql_record(attributes)
             return {key: to_record(val, record) for key, val in value.asdict().items()}
-        # todo: list/dict
-        return {key: dict_out_coverter(val) for key, val in value.asdict().items()}
+        return {key: to_python(val) for key, val in value.asdict().items()}
     return value.asdict()
 
 
@@ -325,7 +330,45 @@ def type_name(plsql: Database, resolved: ResolvedName, plsql_type: Argument):
     return ".".join(argument_type_name)
 
 
-def python_type(
+def in_converter(object_type):
+    def _in_converter(value):
+        var = object_type.newobject()
+
+        for attribute, val in zip(object_type.attributes, value):
+            # todo: self made change to ObjectAttr.c (cx_Oracle should implement this)
+            if attribute.type:
+                val = in_converter(attribute.type)(val)
+            setattr(var, attribute.name, val)
+
+        if object_type.iscollection:
+            if is_list_type(object_type):
+                for val in value:
+                    if object_type.elementType:
+                        val = in_converter(object_type.elementType)(val)
+                    var.append(val)
+            else:
+                for key, val in value.items():
+                    if object_type.elementType:
+                        val = in_converter(object_type.elementType)(val)
+                    var.setelement(key, val)
+
+        return var
+
+    return _in_converter
+
+
+def is_list_type(object_type: oracle.ObjectType) -> bool:
+    # todo: should ask cx_Oracle if there is a better way
+    obj = object_type.newobject()
+    try:
+        obj.trim(1)
+    except oracle.DatabaseError:
+        return True
+    else:
+        return False
+
+
+def cursor_var(
     plsql: Database, cursor: oracle.Cursor, resolved: ResolvedName, plsql_type: Argument
 ):
     plsql_types = {
@@ -333,12 +376,12 @@ def python_type(
         2: oracle.NUMBER,
         3: oracle.NATIVE_INT,
         8: oracle.LONG_STRING,  # LONG
-        11: oracle.ROWID,
+        11: oracle.STRING,  # ROWID
         12: oracle.DATETIME,
         23: oracle.BINARY,
         24: oracle.LONG_BINARY,
-        96: oracle.STRING,  # oracle.FIXED_CHAR
-        112: oracle.STRING,  # oracle.CLOB
+        96: oracle.STRING,  # FIXED_CHAR
+        112: oracle.STRING,  # CLOB
         180: oracle.TIMESTAMP,
         252: oracle.BOOLEAN,
     }
@@ -353,20 +396,27 @@ def python_type(
             251: dict_out_coverter,  # plsql table
         }
 
-        out_converter = out_converters[plsql_type.datatype]
-
         object_type = plsql._connection.gettype(
             type_name(plsql=plsql, resolved=resolved, plsql_type=plsql_type)
         )
-        return cursor.var(object_type, outconverter=out_converter)
+        return cursor.var(
+            object_type,
+            outconverter=out_converters[plsql_type.datatype],
+            inconverter=in_converter(object_type),
+        )
 
 
-def find_matches(overloads, *positional, **named) -> Iterator[Overload]:
-    return (overload for overload in overloads if overload.match(*positional, **named))
+def find_match(
+    overloads: List[Overload], filter_function, *positional, **named
+) -> Overload:
 
+    matches = [
+        overload
+        for overload in overloads
+        if overload.match(*positional, **named)
+        if filter_function(overload)
+    ]
 
-def filter_matches(filter_function, matches: Iterator[Overload]) -> Overload:
-    matches = list(filter(filter_function, matches))
     if len(matches) > 1:
         raise ValueError("Arguments matched with too many subprograms")
     elif len(matches) == 0:
@@ -374,16 +424,29 @@ def filter_matches(filter_function, matches: Iterator[Overload]) -> Overload:
     return matches[0]
 
 
-def translate_arguments(match_function):
+def translate_arguments(match_filter):
     def decorator(func):
         @wraps(func)
         def wrapper(self: Subprogram, *positional, **named):
-            match = filter_matches(
-                match_function, find_matches(self.overloads, *positional, **named)
-            )
+            match = find_match(self.overloads, match_filter, *positional, **named)
 
             with self._plsql._connection.cursor() as cursor:
-                result = func(self, match, cursor, positional, named)
+
+                wrapped_positional = []
+                for value, argument in zip(positional, match.arguments):
+                    pos = cursor_var(self._plsql, cursor, self.resolved, argument)
+                    pos.setvalue(0, value)
+                    wrapped_positional.append(pos)
+
+                wrapped_named = {}
+                for key, value in named.items():
+                    argument = match.argument(key)
+                    if argument:
+                        nam = cursor_var(self._plsql, cursor, self.resolved, argument)
+                        nam.setvalue(0, value)
+                        wrapped_named[key] = nam
+
+                result = func(self, match, cursor, wrapped_positional, wrapped_named)
 
             if match.is_function:
                 return result
@@ -403,11 +466,11 @@ class Subprogram:
             group_by_overload(arguments=arguments),
         )
 
-    @translate_arguments(match_function=lambda x: x.is_function)
+    @translate_arguments(match_filter=lambda x: x.is_function)
     def _call_function(self, match: Overload, cursor, positional, named):
         return cursor.callfunc(
             self.resolved.name,
-            python_type(
+            cursor_var(
                 plsql=self._plsql,
                 cursor=cursor,
                 resolved=self.resolved,
@@ -417,7 +480,7 @@ class Subprogram:
             named,
         )
 
-    @translate_arguments(match_function=lambda x: not x.is_function)
+    @translate_arguments(match_filter=lambda x: not x.is_function)
     def _call_procedure(self, match: Overload, cursor, positional, named):
         _ = match
         cursor.callproc(self.resolved.name, positional, named)

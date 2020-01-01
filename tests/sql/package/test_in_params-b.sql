@@ -2,10 +2,10 @@
 
 CREATE OR REPLACE PACKAGE BODY test_in_params AS
 
-    PROCEDURE err(p_throw IN BOOLEAN) IS
+    PROCEDURE err(p_throw IN BOOLEAN, p_text IN VARCHAR2 DEFAULT 'not equal') IS
     BEGIN
         IF p_throw THEN
-            raise_application_error(-20001, 'not equal');
+            raise_application_error(-20001, p_text);
         END IF;
     END err;
 
@@ -139,45 +139,63 @@ CREATE OR REPLACE PACKAGE BODY test_in_params AS
     --PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER);
 
     -- 122 NESTED TABLE                                     -- list
-    PROCEDURE in_nested(p_param IN tt_nested) IS
+    PROCEDURE in_nested(p_param IN test_return.tt_nested) IS
+        vt_nested test_return.tt_nested := test_return.ret_nested();
     BEGIN
-        NULL;
+        err(p_param.COUNT != vt_nested.COUNT);
+        FOR v_i IN p_param.FIRST .. p_param.LAST LOOP
+            err(p_param(v_i) != vt_nested(v_i));
+        END LOOP;
     END in_nested;
 
-    PROCEDURE in_nested_of_records(p_param IN tt_nested_of_records) IS
+    PROCEDURE in_nested_of_records(p_param IN test_return.tt_nested_of_records) IS
     BEGIN
-        NULL;
+        err(p_param.COUNT != test_return.ret_nested_of_records().COUNT);
+        FOR v_i IN p_param.FIRST .. p_param.LAST LOOP
+            in_record(p_param(v_i));
+        END LOOP;
     END in_nested_of_records;
 
-    PROCEDURE in_nested_of_nested(p_param IN tt_nested_of_nested) IS
+    PROCEDURE in_nested_of_nested(p_param IN test_return.tt_nested_of_nested) IS
     BEGIN
-        NULL;
+        err(TRUE);
+        err(p_param.COUNT != test_return.ret_nested_of_nested().COUNT);
     END in_nested_of_nested;
 
-    PROCEDURE in_nested_of_plsql_table(p_param IN tt_nested_of_plsql_table) IS
+    PROCEDURE in_nested_of_plsql_table(p_param IN test_return.tt_nested_of_plsql_table) IS
     BEGIN
-        NULL;
+        err(TRUE);
+        err(p_param.COUNT != test_return.ret_nested_of_plsql_table().COUNT);
     END in_nested_of_plsql_table;
 
-    PROCEDURE in_nested_of_record_of_nested(p_param IN tt_nested_of_record_of_nested) IS
+    PROCEDURE in_nested_of_record_of_nested(p_param IN test_return.tt_nested_of_record_of_nested) IS
     BEGIN
-        NULL;
+        err(p_param.COUNT != test_return.ret_nested_of_record_of_nested().COUNT);
+        FOR v_i IN p_param.FIRST .. p_param.LAST LOOP
+            in_record_of_nested(p_param(v_i));
+        END LOOP;
     END in_nested_of_record_of_nested;
 
     -- 123 VARRAY                                           -- list
-    PROCEDURE in_varray(p_param IN tt_varray) IS
+    PROCEDURE in_varray(p_param IN test_return.tt_varray) IS
+        vt_varray test_return.tt_varray := test_return.ret_varray();
     BEGIN
-        NULL;
+        err(p_param.COUNT != vt_varray.COUNT);
+        FOR v_i IN p_param.FIRST .. p_param.LAST LOOP
+            err(p_param(v_i) != vt_varray(v_i));
+        END LOOP;
     END in_varray;
 
-    PROCEDURE in_varray_of_nested(p_param IN tt_varray_of_nested) IS
+    PROCEDURE in_varray_of_nested(p_param IN test_return.tt_varray_of_nested) IS
     BEGIN
-        NULL;
+        err(TRUE);
+        err(p_param.COUNT != test_return.ret_varray_of_nested().COUNT);
     END in_varray_of_nested;
 
-    PROCEDURE in_varray_of_plsql_table(p_param IN tt_varray_of_plsql_table) IS
+    PROCEDURE in_varray_of_plsql_table(p_param IN test_return.tt_varray_of_plsql_table) IS
     BEGIN
-        NULL;
+        err(TRUE);
+        err(p_param.COUNT != test_return.ret_varray_of_plsql_table().COUNT);
     END in_varray_of_plsql_table;
 
     -- 178 TIME                                             -- datetime.datetime
@@ -199,45 +217,67 @@ CREATE OR REPLACE PACKAGE BODY test_in_params AS
     --PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER);
 
     -- 250 PL/SQL RECORD                                    -- tuple - namedtuple
-    PROCEDURE in_record(p_param IN tr_record) IS
+    PROCEDURE in_record(p_param IN test_return.tr_record) IS
+        vr_record test_return.tr_record := test_return.ret_record();
     BEGIN
-        NULL;
+        err(p_param.t_int_1 != vr_record.t_int_1);
+        err(p_param.t_int_2 != vr_record.t_int_2);
+        err(p_param.t_int_3 != vr_record.t_int_3);
     END;
 
-    PROCEDURE in_record_of_records(p_param IN tr_record_of_records) IS
+    PROCEDURE in_record_of_records(p_param IN test_return.tr_record_of_records) IS
+        vr_record_of_records test_return.tr_record_of_records := test_return.ret_record_of_records();
     BEGIN
-        NULL;
+--         err(TRUE);
+        err(p_param.t_int_1 != vr_record_of_records.t_int_1);
+        in_record(p_param.t_rec_2);
+        in_record(p_param.t_rec_3);
     END in_record_of_records;
 
-    PROCEDURE in_record_of_nested(p_param IN tr_record_of_nested) IS
+    PROCEDURE in_record_of_nested(p_param IN test_return.tr_record_of_nested) IS
+        vr_record_of_nested test_return.tr_record_of_nested := test_return.ret_record_of_nested();
     BEGIN
-        NULL;
+        err(p_param.t_int_1 != vr_record_of_nested.t_int_1);
+        in_nested(p_param.t_nes_2);
+        in_nested(p_param.t_nes_3);
     END in_record_of_nested;
 
-    PROCEDURE in_record_of_plsql_table(p_param IN tr_record_of_plsql_table) IS
+    PROCEDURE in_record_of_plsql_table(p_param IN test_return.tr_record_of_plsql_table) IS
+        vr_record_of_plsql_table test_return.tr_record_of_plsql_table := test_return.ret_record_of_plsql_table();
     BEGIN
-        NULL;
+        err(p_param.t_int_1 != vr_record_of_plsql_table.t_int_1);
+        in_plsql_table(p_param.t_pls_2);
+        in_plsql_table(p_param.t_pls_3);
     END in_record_of_plsql_table;
 
     -- 251 PL/SQL TABLE                                     -- mapping
-    PROCEDURE in_plsql_table(p_param IN tt_plsql_table) IS
+    PROCEDURE in_plsql_table(p_param IN test_return.tt_plsql_table) IS
+        vt_plsql_table test_return.tt_plsql_table := test_return.ret_plsql_table();
     BEGIN
-        NULL;
+        err(p_param.COUNT != vt_plsql_table.COUNT, p_param.COUNT || ' != ' || vt_plsql_table.COUNT);
+        FOR v_i IN p_param.FIRST .. p_param.LAST LOOP
+            err(p_param(v_i) != vt_plsql_table(v_i), '(v_i=' || v_i || ') ' || p_param(v_i) || ' != ' || vt_plsql_table(v_i));
+        END LOOP;
     END in_plsql_table;
 
-    PROCEDURE in_plsql_table_of_records(p_param IN tt_plsql_table_of_records) IS
+    PROCEDURE in_plsql_table_of_records(p_param IN test_return.tt_plsql_table_of_records) IS
     BEGIN
-        NULL;
+        err(p_param.COUNT != test_return.ret_plsql_table_of_records().COUNT);
+        FOR v_i IN p_param.FIRST .. p_param.LAST LOOP
+            in_record(p_param(v_i));
+        END LOOP;
     END in_plsql_table_of_records;
 
-    PROCEDURE in_plsql_table_of_nested(p_param IN tt_plsql_table_of_nested) IS
+    PROCEDURE in_plsql_table_of_nested(p_param IN test_return.tt_plsql_table_of_nested) IS
     BEGIN
-        NULL;
+        err(TRUE);
+        err(p_param.COUNT != test_return.ret_plsql_table_of_nested().COUNT);
     END in_plsql_table_of_nested;
 
-    PROCEDURE in_plsql_table_of_plsql_table(p_param IN tt_plsql_table_of_plsql_table) IS
+    PROCEDURE in_plsql_table_of_plsql_table(p_param IN test_return.tt_plsql_table_of_plsql_table) IS
     BEGIN
-        NULL;
+        err(TRUE);
+        err(p_param.COUNT != test_return.ret_plsql_table_of_plsql_table().COUNT);
     END in_plsql_table_of_plsql_table;
 
     -- 252 PL/SQL BOOLEAN                                   -- bool
@@ -245,6 +285,5 @@ CREATE OR REPLACE PACKAGE BODY test_in_params AS
     BEGIN
         err(p_param != test_return.ret_bool);
     END;
-
 
 END test_in_params;

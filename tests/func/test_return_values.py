@@ -37,11 +37,7 @@ PLSQL_TABLE = {i: i for i in range(1, 11)}
         ("ret_record", RECORD),
         ("ret_record_of_records", (42, RECORD, RECORD)),
         ("ret_record_of_nested", (42, NESTED, NESTED)),
-        pytest.param(
-            "ret_record_of_plsql_table",
-            (42, PLSQL_TABLE, PLSQL_TABLE),
-            marks=pytest.mark.xfail(reason="can't tell between NESTED/PLSQL tables"),
-        ),
+        ("ret_record_of_plsql_table", (42, PLSQL_TABLE, PLSQL_TABLE),),
         ("ret_nested", NESTED),
         ("ret_nested_of_records", [RECORD] * 10),
         ("ret_nested_of_record_of_nested", [(42, NESTED, NESTED)] * 10),
@@ -51,10 +47,7 @@ PLSQL_TABLE = {i: i for i in range(1, 11)}
         pytest.param(
             "ret_varray_of_plsql_table",
             [PLSQL_TABLE] * 10,
-            marks=[
-                pytest.mark.skip(reason="Memory access violation"),
-                pytest.mark.xfail(reason="can't tell between NESTED/PLSQL tables"),
-            ],
+            marks=[pytest.mark.skip(reason="Memory access violation"),],
         ),
         pytest.param(
             "ret_varray_of_nested",
