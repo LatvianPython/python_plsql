@@ -36,6 +36,12 @@ class ObjectTypes(IntEnum):
     type = 13
 
 
+class Direction(IntEnum):
+    in_ = 0
+    out = 1
+    in_out = 2
+
+
 class NotFound(AttributeError):
     pass
 
@@ -97,7 +103,7 @@ def _dbms_describe_describe_procedure(
             argument_name.aslist(),
             datatype.aslist(),
             map(bool, default_value.aslist()),
-            in_out.aslist(),
+            map(Direction, in_out.aslist()),
             length.aslist(),
             precision.aslist(),
             scale.aslist(),
@@ -450,6 +456,27 @@ def find_match(
     return matches[0]
 
 
+def wrap_positional(match, plsql, resolved, cursor, positional):
+    wrapped_positional = []
+    for value, argument in zip(positional, match.arguments):
+        _, converter = cursor_var(plsql, cursor, resolved, argument)
+
+        wrapped_positional.append(converter.to_oracle(value))
+
+    return wrapped_positional
+
+
+def wrap_named(match, plsql, resolved, cursor, named):
+    wrapped_named = {}
+    for key, value in named.items():
+        argument = match.argument(key)
+        if argument:
+            _, converter = cursor_var(plsql, cursor, resolved, argument)
+            wrapped_named[key] = converter.to_oracle(value)
+
+    return wrapped_named
+
+
 def translate_arguments(match_filter):
     def decorator(func):
         @wraps(func)
@@ -458,22 +485,13 @@ def translate_arguments(match_filter):
 
             with self._plsql._connection.cursor() as cursor:
 
-                wrapped_positional = []
-                for value, argument in zip(positional, match.arguments):
-                    _, converter = cursor_var(
-                        self._plsql, cursor, self.resolved, argument
-                    )
+                wrapped_positional = wrap_positional(
+                    match, self._plsql, self.resolved, cursor, positional
+                )
 
-                    wrapped_positional.append(converter.to_oracle(value))
-
-                wrapped_named = {}
-                for key, value in named.items():
-                    argument = match.argument(key)
-                    if argument:
-                        _, converter = cursor_var(
-                            self._plsql, cursor, self.resolved, argument
-                        )
-                        wrapped_named[key] = converter.to_oracle(value)
+                wrapped_named = wrap_named(
+                    match, self._plsql, self.resolved, cursor, named
+                )
 
                 result = func(self, match, cursor, wrapped_positional, wrapped_named)
 
