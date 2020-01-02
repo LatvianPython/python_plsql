@@ -283,7 +283,10 @@ def to_python(value):
         elif is_list(value.type):
             return list_out_converter(value)
         return dict_out_coverter(value)
-    return value
+    try:
+        return value.getvalue(0)
+    except AttributeError:
+        return value
 
 
 def to_record(value, record):
@@ -345,19 +348,19 @@ def convert(object_type, value):
 def make_in_converter(object_type):
     def _in_converter(value):
         var = object_type.newobject()
-
-        if object_type.iscollection:
-            if is_list(object_type):
-                for val in value:
-                    var.append(convert(object_type.elementType, val))
+        if value:
+            if object_type.iscollection:
+                if is_list(object_type):
+                    for val in value:
+                        var.append(convert(object_type.elementType, val))
+                else:
+                    for key, val in value.items():
+                        var.setelement(key, convert(object_type.elementType, val))
             else:
-                for key, val in value.items():
-                    var.setelement(key, convert(object_type.elementType, val))
-        else:
-            for attribute, val in zip(object_type.attributes, value):
-                # todo: self made change to ObjectAttr.c (cx_Oracle should implement this)
-                #  type is not accessible by default..
-                setattr(var, attribute.name, convert(attribute.type, val))
+                for attribute, val in zip(object_type.attributes, value):
+                    # todo: self made change to ObjectAttr.c (cx_Oracle should implement this)
+                    #  type is not accessible by default..
+                    setattr(var, attribute.name, convert(attribute.type, val))
 
         return var
 
@@ -477,6 +480,29 @@ def wrap_named(match, plsql, resolved, cursor, named):
     return wrapped_named
 
 
+def in_out_parameters(positional, named, match: Overload):
+    in_out = []
+    for pos, argument in zip(positional, match.arguments):
+        if argument.in_out in {Direction.out, Direction.in_out}:
+            in_out.append((pos, argument.argument_name.lower()))
+
+    for argument in match.arguments:
+        if argument.in_out in {Direction.out, Direction.in_out}:
+            try:
+                in_out.append(
+                    (
+                        named[argument.argument_name.lower()],
+                        argument.argument_name.lower(),
+                    )
+                )
+            except KeyError:
+                pass
+
+    in_out_rec = namedtuple("InOutParams", map(itemgetter(1), in_out))
+
+    return in_out_rec(*map(to_python, map(itemgetter(0), in_out)))
+
+
 def translate_arguments(match_filter):
     def decorator(func):
         @wraps(func)
@@ -495,8 +521,15 @@ def translate_arguments(match_filter):
 
                 result = func(self, match, cursor, wrapped_positional, wrapped_named)
 
+                in_out = in_out_parameters(wrapped_positional, wrapped_named, match)
+
             if match.is_function:
+                if in_out:
+                    return result, in_out
                 return result
+
+            if in_out:
+                return in_out
 
         return wrapper
 
@@ -543,8 +576,6 @@ class Subprogram:
 
     @property
     def overloaded(self) -> bool:
-        """returns true if exists multiple definitions of the same subprogram in a package
-        only applicable for package procedures/functions where overloading is possible"""
         return len(self.overloads) > 1
 
     @property
@@ -557,7 +588,6 @@ class Subprogram:
 
     @property
     def standalone(self) -> bool:
-        """returns true if procedure/function is not part of a package"""
         return self.resolved.object_type in {
             ObjectTypes.procedure,
             ObjectTypes.function,
