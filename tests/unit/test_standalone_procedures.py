@@ -11,7 +11,7 @@ def test_procedure_is_found(procedure):
 
 
 def test_standalone_procedures_are_not_overloaded(procedure):
-    assert not procedure.overloaded
+    assert not procedure.is_overloaded
 
 
 def test_standalone_procedures_are_standalone(procedure):

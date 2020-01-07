@@ -358,8 +358,8 @@ def make_in_converter(object_type):
                         var.setelement(key, convert(object_type.elementType, val))
             else:
                 for attribute, val in zip(object_type.attributes, value):
-                    # todo: self made change to ObjectAttr.c (cx_Oracle should implement this)
-                    #  type is not accessible by default..
+                    # todo: self made change to ObjectAttr.c (best case implemented in cx_Oracle)
+                    #  attribute.type is not accessible by default..
                     setattr(var, attribute.name, convert(attribute.type, val))
 
         return var
@@ -368,7 +368,7 @@ def make_in_converter(object_type):
 
 
 def is_list(object_type: oracle.ObjectType) -> bool:
-    # todo: should ask cx_Oracle if there is a better way
+    # todo: find better way
     obj = object_type.newobject()
     try:
         obj.trim(1)
@@ -564,7 +564,7 @@ class Subprogram:
         cursor.callproc(self.resolved.name, positional, named)
 
     def __call__(self, *args, **kwargs):
-        if self.overloaded and self.is_function and self.is_procedure:
+        if self.is_overloaded and self.is_function and self.is_procedure:
             raise NotImplementedError(
                 "Subprogram is overloaded as a function and procedure, use _call_procedure or _call_function methods"
             )
@@ -575,7 +575,7 @@ class Subprogram:
             return self._call_procedure(*args, **kwargs)
 
     @property
-    def overloaded(self) -> bool:
+    def is_overloaded(self) -> bool:
         return len(self.overloads) > 1
 
     @property
