@@ -1,10 +1,9 @@
 CREATE OR REPLACE PACKAGE test_overload AS
 
-    FUNCTION simple_function(p_int IN INTEGER,
-                             p_divide IN BOOLEAN)
-        RETURN INTEGER;
+    FUNCTION to_string(p_in IN VARCHAR2)
+    RETURN VARCHAR2;
 
-    FUNCTION simple_function(p_int IN INTEGER)
-        RETURN INTEGER;
+    FUNCTION to_string(p_in IN INTEGER)
+    RETURN VARCHAR2;
 
 END test_overload;

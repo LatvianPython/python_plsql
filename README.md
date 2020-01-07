@@ -6,6 +6,7 @@ Right now it's use is only academic, however potential applications would be to 
 
 What you need is just the client.py file, the cx_Oracle package (refer to it's documentation on how to install it) and an Oracle database you can point this script to.
 
+NB! Current version has a modified version of cx_Oracle, so this package currently will not work for you 
 
 # Example(s)
 

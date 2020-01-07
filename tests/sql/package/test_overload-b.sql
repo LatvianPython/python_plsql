@@ -1,21 +1,15 @@
 CREATE OR REPLACE PACKAGE BODY test_overload AS
 
-    FUNCTION simple_function(p_int IN INTEGER)
-        RETURN INTEGER IS
+    FUNCTION to_string(p_in IN VARCHAR2)
+    RETURN VARCHAR2 IS
     BEGIN
-        RETURN p_int * p_int;
-    END simple_function;
+        RETURN p_in;
+    END to_string;
 
-    FUNCTION simple_function(p_int IN INTEGER,
-                             p_divide IN BOOLEAN)
-        RETURN INTEGER IS
+    FUNCTION to_string(p_in IN INTEGER)
+    RETURN VARCHAR2 IS
     BEGIN
-        IF p_divide THEN
-            RETURN p_int / p_int;
-        ELSE
-            RETURN p_int * p_int;
-        END IF;
-
-    END simple_function;
+        RETURN TO_CHAR(p_in);
+    END to_string;
 
 END test_overload;
