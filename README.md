@@ -6,13 +6,11 @@ Right now it's use is only academic, however potential applications would be to 
 
 What you need is just the client.py file, the cx_Oracle package (refer to it's documentation on how to install it) and an Oracle database you can point this script to.
 
-NB! Current version has a modified version of cx_Oracle, so this package currently will not work for you 
-
 # Example(s)
 
 Hopefully if all goes well you will be able to call most of the PL/SQL code from Python
 ```Python
->>>plsql = Database(...):
+>>>plsql = Database(...)
 >>>plsql.simple_function(p_int=5)
 10
 ```

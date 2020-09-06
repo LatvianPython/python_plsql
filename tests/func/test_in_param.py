@@ -38,7 +38,7 @@ PLSQL_TABLE = {i: i for i in range(1, 11)}
         pytest.param(
             "in_record_of_records",
             (42, RECORD, RECORD),
-            marks=pytest.mark.skip(
+            marks=pytest.mark.xfail(
                 reason="OCI-21602: operation does not support the specified typecode"
             ),
         ),
