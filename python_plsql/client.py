@@ -282,7 +282,7 @@ def to_python(value):
             return record_out_converter(value)
         elif is_list(value.type):
             return list_out_converter(value)
-        return dict_out_coverter(value)
+        return dict_out_converter(value)
     try:
         return value.getvalue(0)
     except AttributeError:
@@ -296,8 +296,8 @@ def to_record(value, record):
 
 
 def list_out_converter(value):
-    if value.type.elementType:
-        attributes = value.type.elementType.attributes
+    if not isinstance(value.type.element_type, oracle.DbType):
+        attributes = value.type.element_type.attributes
         if attributes:
             record = plsql_record(attributes)
             return [to_record(val, record) for val in value.aslist()]
@@ -305,9 +305,9 @@ def list_out_converter(value):
     return value.aslist()
 
 
-def dict_out_coverter(value):
-    if value.type.elementType:
-        attributes = value.type.elementType.attributes
+def dict_out_converter(value):
+    if not isinstance(value.type.element_type, oracle.DbType):
+        attributes = value.type.element_type.attributes
         if attributes:
             record = plsql_record(attributes)
             return {key: to_record(val, record) for key, val in value.asdict().items()}
@@ -340,7 +340,9 @@ def type_name(plsql: Database, resolved: ResolvedName, plsql_type: Argument):
 
 
 def convert(object_type, value):
-    if object_type:
+    if isinstance(object_type, oracle.DbType):
+        pass
+    elif object_type:
         return make_in_converter(object_type)(value)
     return value
 
@@ -352,14 +354,12 @@ def make_in_converter(object_type):
             if object_type.iscollection:
                 if is_list(object_type):
                     for val in value:
-                        var.append(convert(object_type.elementType, val))
+                        var.append(convert(object_type.element_type, val))
                 else:
                     for key, val in value.items():
-                        var.setelement(key, convert(object_type.elementType, val))
+                        var.setelement(key, convert(object_type.element_type, val))
             else:
                 for attribute, val in zip(object_type.attributes, value):
-                    # todo: self made change to ObjectAttr.c (best case implemented in cx_Oracle)
-                    #  attribute.type is not accessible by default..
                     setattr(var, attribute.name, convert(attribute.type, val))
 
         return var
