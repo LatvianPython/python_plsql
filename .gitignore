@@ -104,3 +104,6 @@ venv.bak/
 .mypy_cache/
 
 /tests/database.ini
+/.idea/
+scratch*.py
+*.rb

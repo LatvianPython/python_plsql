@@ -52,8 +52,8 @@ def _dbms_describe_describe_procedure(
     """Wrapper for Oracle DBMS_DESCRIBE.DESCRIBE_PROCEDURE procedure"""
 
     number_table, varchar2_table = (
-        connection.gettype("DBMS_DESCRIBE.NUMBER_TABLE"),
-        connection.gettype("DBMS_DESCRIBE.VARCHAR2_TABLE"),
+        connection.gettype("SYS.DBMS_DESCRIBE.NUMBER_TABLE"),
+        connection.gettype("SYS.DBMS_DESCRIBE.VARCHAR2_TABLE"),
     )
 
     with connection.cursor() as cursor:
