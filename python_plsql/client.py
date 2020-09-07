@@ -248,7 +248,7 @@ class Overload:
         self.arguments = [
             argument
             for argument in self.arguments
-            if argument.position and argument.datatype
+            if argument.position and argument.datatype and argument.level == 0
         ]
 
     def match(self, *args, **kwargs) -> bool:

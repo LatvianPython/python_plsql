@@ -4,7 +4,7 @@ import setuptools
 setuptools.setup(
     name="python_plsql",
     author="LatvianPython",
-    version="0.1.1",
+    version="0.1.2",
     packages=setuptools.find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3.8",
