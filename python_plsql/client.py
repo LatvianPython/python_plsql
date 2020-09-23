@@ -252,7 +252,15 @@ class Overload:
         ]
 
     def match(self, *args, **kwargs) -> bool:
-        return (len(args) + len(kwargs)) == len(self.arguments)
+        argument_count = len(args) + len(kwargs)
+
+        exact_match = argument_count == len(self.arguments)
+
+        if argument_count < len(self.arguments):
+            return argument_count == len(
+                [argument for argument in self.arguments if not argument.default_value]
+            )
+        return exact_match
 
     def argument(self, name: str) -> Optional[Argument]:
         for argument in self.arguments:
