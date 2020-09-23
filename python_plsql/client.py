@@ -418,6 +418,7 @@ def cursor_var(
         24: oracle.LONG_BINARY,
         96: oracle.STRING,  # FIXED_CHAR
         112: oracle.STRING,  # CLOB
+        113: oracle.BLOB,
         180: oracle.TIMESTAMP,
         252: oracle.BOOLEAN,
     }
