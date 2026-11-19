@@ -14,7 +14,8 @@ def test_error_when_subprogram_does_not_exist(plsql):
 
 
 @pytest.mark.parametrize(
-    "args, kwargs", [([1], {}), ([], {"p_int": 5}), ([1], {"p_int": 5})],
+    "args, kwargs",
+    [([1], {}), ([], {"p_int": 5}), ([1], {"p_int": 5})],
 )
 def test_incorrect_call_raises_exception(simple_procedure, args, kwargs):
     with pytest.raises(ValueError, match="Arguments do not match subprogram"):

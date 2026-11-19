@@ -46,19 +46,40 @@ PLSQL_TABLE = {i: i for i in range(1, 11)}
             ),
         ),
         ("in_record_of_nested", (42, NESTED, NESTED)),
-        ("in_record_of_plsql_table", (42, PLSQL_TABLE, PLSQL_TABLE),),
+        (
+            "in_record_of_plsql_table",
+            (42, PLSQL_TABLE, PLSQL_TABLE),
+        ),
         ("in_nested", NESTED),
         ("in_nested_of_records", [RECORD] * 10),
         ("in_nested_of_record_of_nested", [(42, NESTED, NESTED)] * 10),
         ("in_varray", VARRAY),
         ("in_plsql_table", PLSQL_TABLE),
         ("in_plsql_table_of_records", {i: RECORD for i in range(1, 11)}),
-        ("in_varray_of_plsql_table", [PLSQL_TABLE] * 10,),
-        ("in_varray_of_nested", [NESTED] * 10,),
-        ("in_plsql_table_of_nested", {i: NESTED for i in range(1, 11)},),
-        ("in_nested_of_nested", [NESTED] * 10,),
-        ("in_nested_of_plsql_table", [PLSQL_TABLE] * 10,),
-        ("in_plsql_table_of_plsql_table", {i: PLSQL_TABLE for i in range(1, 11)},),
+        (
+            "in_varray_of_plsql_table",
+            [PLSQL_TABLE] * 10,
+        ),
+        (
+            "in_varray_of_nested",
+            [NESTED] * 10,
+        ),
+        (
+            "in_plsql_table_of_nested",
+            {i: NESTED for i in range(1, 11)},
+        ),
+        (
+            "in_nested_of_nested",
+            [NESTED] * 10,
+        ),
+        (
+            "in_nested_of_plsql_table",
+            [PLSQL_TABLE] * 10,
+        ),
+        (
+            "in_plsql_table_of_plsql_table",
+            {i: PLSQL_TABLE for i in range(1, 11)},
+        ),
     ],
 )
 def test_return_values(plsql, func, in_value):

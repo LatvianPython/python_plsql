@@ -1,6 +1,5 @@
 import setuptools
 
-
 setuptools.setup(
     name="python_plsql",
     author="LatvianPython",

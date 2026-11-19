@@ -637,14 +637,18 @@ def search_object(
         ObjectTypes.procedure,
     }:
         return Subprogram(
-            plsql=plsql, resolved=name, arguments=plsql._describe_procedure(item),
+            plsql=plsql,
+            resolved=name,
+            arguments=plsql._describe_procedure(item),
         )
     elif name.object_type == ObjectTypes.package:
         items = item.split(".")
         with_schema = plsql.is_schema(items[0])
         if len(items) == 3 and with_schema or len(items) == 2 and not with_schema:
             return Subprogram(
-                plsql=plsql, resolved=name, arguments=plsql._describe_procedure(item),
+                plsql=plsql,
+                resolved=name,
+                arguments=plsql._describe_procedure(item),
             )
         return Package(plsql=plsql, name=item)
 

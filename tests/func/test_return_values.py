@@ -40,7 +40,10 @@ PLSQL_TABLE = {i: i for i in range(1, 11)}
         ("ret_record", RECORD),
         ("ret_record_of_records", (42, RECORD, RECORD)),
         ("ret_record_of_nested", (42, NESTED, NESTED)),
-        ("ret_record_of_plsql_table", (42, PLSQL_TABLE, PLSQL_TABLE),),
+        (
+            "ret_record_of_plsql_table",
+            (42, PLSQL_TABLE, PLSQL_TABLE),
+        ),
         ("ret_nested", NESTED),
         ("ret_nested_of_records", [RECORD] * 10),
         ("ret_nested_of_record_of_nested", [(42, NESTED, NESTED)] * 10),
