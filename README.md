@@ -1,6 +1,6 @@
 # Description
 
-Right now it's use is only academic, however potential applications would be to make testing PL/SQL easier by providing a simple way to call them from an easy to use language 
+Makes testing PL/SQL easier by providing a simple way to call it from an easy to use language
 
 # How to use this right now?
 
