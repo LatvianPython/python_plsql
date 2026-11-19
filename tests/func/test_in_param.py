@@ -1,6 +1,9 @@
 import pytest
 import datetime
 
+from tests.func import DUAL_ROWID
+from tests.func import resolve
+
 RECORD = (42, 84, 126)
 VARRAY = list(range(10, 0, -1))
 NESTED = [i * 2 for i in range(1, 11)]
@@ -26,7 +29,7 @@ PLSQL_TABLE = {i: i for i in range(1, 11)}
         ("in_natural", 42),
         ("in_clob", "42"),
         ("in_long", "42"),
-        ("in_rowid", "AAAACPAABAAAAShAAA"),
+        ("in_rowid", DUAL_ROWID),
         ("in_date", datetime.datetime(year=2019, month=12, day=20)),
         ("in_timestamp", datetime.datetime(year=2019, month=12, day=20)),
         ("in_raw", b"42"),
@@ -38,7 +41,7 @@ PLSQL_TABLE = {i: i for i in range(1, 11)}
         pytest.param(
             "in_record_of_records",
             (42, RECORD, RECORD),
-            marks=pytest.mark.xfail(
+            marks=pytest.mark.xfail_thick(
                 reason="OCI-21602: operation does not support the specified typecode"
             ),
         ),
@@ -59,4 +62,4 @@ PLSQL_TABLE = {i: i for i in range(1, 11)}
     ],
 )
 def test_return_values(plsql, func, in_value):
-    getattr(plsql.test_in_params, func)(in_value)
+    getattr(plsql.test_in_params, func)(resolve(plsql, in_value))

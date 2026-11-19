@@ -1,6 +1,10 @@
 import pytest
 import datetime
 
+from tests.func import BlankPadded
+from tests.func import DUAL_ROWID
+from tests.func import resolve
+
 IN_RECORD = (42, 84, 126)
 IN_VARRAY = list(range(10, 0, -1))
 IN_NESTED = [i * 2 for i in range(1, 11)]
@@ -31,7 +35,7 @@ OUT_PLSQL_TABLE = {i: i for i in range(1, 11)}
         ("io_natural", 42, 42),
         ("io_clob", "42", "42"),
         ("io_long", "42", "42"),
-        ("io_rowid", "AAAACPAABAAAAShAAA", "AAAACPAABAAAAShAAA"),
+        ("io_rowid", DUAL_ROWID, DUAL_ROWID),
         (
             "io_date",
             datetime.datetime(year=2019, month=12, day=20),
@@ -44,15 +48,15 @@ OUT_PLSQL_TABLE = {i: i for i in range(1, 11)}
         ),
         ("io_raw", b"42", b"42"),
         ("io_long_raw", b"42", b"42"),
-        ("io_char", "42".ljust(12000, " "), "42".ljust(12000, " ")),
-        ("io_character", "42".ljust(12000, " "), "42".ljust(12000, " ")),
+        ("io_char", "42", BlankPadded("42")),
+        ("io_character", "42", BlankPadded("42")),
         ("io_bool", True, True),
         ("io_record", IN_RECORD, IN_RECORD),
         pytest.param(
             "io_record_of_records",
             (42, IN_RECORD, IN_RECORD),
             (42, IN_RECORD, IN_RECORD),
-            marks=pytest.mark.skip(
+            marks=pytest.mark.xfail_thick(
                 reason="OCI-21602: operation does not support the specified typecode"
             ),
         ),
@@ -76,43 +80,22 @@ OUT_PLSQL_TABLE = {i: i for i in range(1, 11)}
             {i: IN_RECORD for i in range(1, 11)},
             {i: IN_RECORD for i in range(1, 11)},
         ),
-        pytest.param(
-            "io_varray_of_plsql_table",
-            [IN_PLSQL_TABLE] * 10,
-            [IN_PLSQL_TABLE] * 10,
-            marks=pytest.mark.skip("Memory access violation"),
-        ),
-        pytest.param(
-            "io_varray_of_nested",
-            [IN_NESTED] * 10,
-            [IN_NESTED] * 10,
-            marks=pytest.mark.skip("Memory access violation"),
-        ),
-        pytest.param(
+        ("io_varray_of_plsql_table", [IN_PLSQL_TABLE] * 10, [IN_PLSQL_TABLE] * 10),
+        ("io_varray_of_nested", [IN_NESTED] * 10, [IN_NESTED] * 10),
+        (
             "io_plsql_table_of_nested",
             {i: IN_NESTED for i in range(1, 11)},
             {i: IN_NESTED for i in range(1, 11)},
-            marks=pytest.mark.skip("Memory access violation"),
         ),
-        pytest.param(
-            "io_nested_of_nested",
-            [IN_NESTED] * 10,
-            [IN_NESTED] * 10,
-            marks=pytest.mark.skip("Memory access violation"),
-        ),
-        pytest.param(
-            "io_nested_of_plsql_table",
-            [IN_PLSQL_TABLE] * 10,
-            [IN_PLSQL_TABLE] * 10,
-            marks=pytest.mark.skip("Memory access violation"),
-        ),
-        pytest.param(
+        ("io_nested_of_nested", [IN_NESTED] * 10, [IN_NESTED] * 10),
+        ("io_nested_of_plsql_table", [IN_PLSQL_TABLE] * 10, [IN_PLSQL_TABLE] * 10),
+        (
             "io_plsql_table_of_plsql_table",
             {i: IN_PLSQL_TABLE for i in range(1, 11)},
             {i: IN_PLSQL_TABLE for i in range(1, 11)},
-            marks=pytest.mark.skip("Memory access violation"),
         ),
     ],
 )
 def test_return_values(plsql, func, in_value, out_value):
-    assert getattr(plsql.test_in_out_params, func)(in_value).p_param == out_value
+    result = getattr(plsql.test_in_out_params, func)(resolve(plsql, in_value))
+    assert result.p_param == resolve(plsql, out_value)

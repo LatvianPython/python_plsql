@@ -128,7 +128,7 @@ CREATE OR REPLACE PACKAGE BODY test_out_params AS
     -- 106 MLSLABEL                                         -- ??? only backwards compatibility ???
     --PROCEDURE out_binary_integer(p_param OUT BINARY_INTEGER);
 
-    -- 121 OBJECT                                           -- cx_Oracle.Object ???
+    -- 121 OBJECT                                           -- oracledb.DbObject ???
     --PROCEDURE out_binary_integer(p_param OUT BINARY_INTEGER);
 
     -- 122 NESTED TABLE                                     -- list

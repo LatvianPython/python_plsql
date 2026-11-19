@@ -4,7 +4,18 @@ Right now it's use is only academic, however potential applications would be to 
 
 # How to use this right now?
 
-What you need is just the client.py file, the cx_Oracle package (refer to it's documentation on how to install it) and an Oracle database you can point this script to.
+What you need is just the client.py file, the [python-oracledb](https://python-oracledb.readthedocs.io/) package (`pip install oracledb`) and an Oracle database you can point this script to.
+
+Thin mode (the default) decodes PL/SQL collections of `PLS_INTEGER`/`BINARY_INTEGER` as booleans. To avoid that, install [Oracle Instant Client](https://www.oracle.com/database/technologies/instant-client.html) and pass its directory as `Database(..., oracle_client_dir=...)` to use thick mode.
+
+# Running the tests
+
+Start an Oracle Database Free container (creates `TEST_USER` on first start), then fill in `tests/database.ini`:
+
+```
+docker compose up -d
+pytest tests
+```
 
 # Example(s)
 

@@ -60,7 +60,7 @@ CREATE OR REPLACE PACKAGE test_in_params AS
     -- 106 MLSLABEL                                         -- ??? only backwards compatibility ???
     --PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER);
 
-    -- 121 OBJECT                                           -- cx_Oracle.Object ???
+    -- 121 OBJECT                                           -- oracledb.DbObject ???
     --PROCEDURE in_binary_integer(p_param IN BINARY_INTEGER);
 
     -- 122 NESTED TABLE                                     -- list

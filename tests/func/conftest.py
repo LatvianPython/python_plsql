@@ -1,6 +1,8 @@
 import pytest
 import itertools
 
+import oracledb
+
 
 def recurse_getattr(current, attributes):
     attributes = list(filter(None, attributes))
@@ -44,3 +46,16 @@ def simple_function(plsql, request):
 )
 def simple_procedure(plsql, request):
     return recurse_getattr(plsql, request.param.split("."))
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "xfail_thick(reason): expected to fail in oracledb thick mode"
+    )
+
+
+@pytest.fixture(autouse=True)
+def xfail_thick(request, plsql):
+    marker = request.node.get_closest_marker("xfail_thick")
+    if marker and not oracledb.is_thin_mode():
+        request.applymarker(pytest.mark.xfail(strict=True, **marker.kwargs))

@@ -5,21 +5,19 @@ import pytest
 
 from python_plsql import Database
 
-from cx_Oracle import DatabaseError
+from oracledb import DatabaseError
+
+TESTS_DIR = Path(__file__).resolve().parent
 
 
 @pytest.fixture(scope="session")
 def plsql():
     config = configparser.ConfigParser()
-    config.read("./tests/database.ini")
+    config.read(TESTS_DIR / "database.ini")
 
     parameters = dict(config["database"].items())
 
-    user, password, encoding = (
-        parameters["user"],
-        parameters["password"],
-        parameters["encoding"],
-    )
+    user, password = parameters["user"], parameters["password"]
 
     auth = (
         parameters["host"],
@@ -28,13 +26,14 @@ def plsql():
     )
 
     database = Database(
-        user=user, password=password, service_auth=auth, encoding=encoding
+        user=user,
+        password=password,
+        service_auth=auth,
+        oracle_client_dir=parameters.get("oracle_client_dir") or None,
     )
 
     directories = [
-        directory
-        for directory in Path("./tests").glob("./sql/*/")
-        if directory.is_dir()
+        directory for directory in TESTS_DIR.glob("sql/*/") if directory.is_dir()
     ]
 
     objects = [
@@ -47,6 +46,9 @@ def plsql():
 
     drop_all_objects(database, objects)
     create_objects(database, objects)
+    database.execute(
+        "BEGIN dbms_utility.compile_schema(USER, compile_all => FALSE); END;"
+    )
 
     yield database
 

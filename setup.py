@@ -12,5 +12,5 @@ setuptools.setup(
         "Development Status :: 2 - Pre-Alpha",
     ],
     python_requires=">=3.8",
-    install_requires=["cx_Oracle"],
+    install_requires=["oracledb"],
 )

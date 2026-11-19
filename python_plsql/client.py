@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import namedtuple
+from datetime import datetime
 from enum import IntEnum
 from functools import wraps
 from itertools import groupby
@@ -14,7 +15,7 @@ from typing import Optional
 from typing import Tuple
 from typing import Union
 
-import cx_Oracle as oracle
+import oracledb as oracle
 
 Argument = namedtuple(
     "Argument",
@@ -285,7 +286,7 @@ def plsql_record(attributes) -> Any:
 
 # noinspection PyTypeChecker
 def to_python(value):
-    if isinstance(value, oracle.Object):
+    if isinstance(value, oracle.DbObject):
         if value.type.attributes:
             return record_out_converter(value)
         elif is_list(value.type):
@@ -375,12 +376,37 @@ def make_in_converter(object_type):
     return _in_converter
 
 
-def is_list(object_type: oracle.ObjectType) -> bool:
-    # todo: find better way
+# values for is_list, thick mode does not accept None as an element
+_PROBE_VALUES = {
+    oracle.DB_TYPE_NUMBER: 0,
+    oracle.DB_TYPE_BINARY_INTEGER: 0,
+    oracle.DB_TYPE_BINARY_FLOAT: 0.0,
+    oracle.DB_TYPE_BINARY_DOUBLE: 0.0,
+    oracle.DB_TYPE_BOOLEAN: False,
+    oracle.DB_TYPE_VARCHAR: "",
+    oracle.DB_TYPE_NVARCHAR: "",
+    oracle.DB_TYPE_CHAR: "",
+    oracle.DB_TYPE_NCHAR: "",
+    oracle.DB_TYPE_RAW: b"",
+    oracle.DB_TYPE_DATE: datetime(2000, 1, 1),
+    oracle.DB_TYPE_TIMESTAMP: datetime(2000, 1, 1),
+    oracle.DB_TYPE_TIMESTAMP_TZ: datetime(2000, 1, 1),
+    oracle.DB_TYPE_TIMESTAMP_LTZ: datetime(2000, 1, 1),
+}
+
+
+def _probe_value(element_type):
+    if isinstance(element_type, oracle.DbObjectType):
+        return element_type.newobject()
+    return _PROBE_VALUES.get(element_type)
+
+
+def is_list(object_type: oracle.DbObjectType) -> bool:
+    # nested tables and varrays are lists, index-by tables are dicts
     obj = object_type.newobject()
     try:
-        obj.trim(1)
-    except oracle.DatabaseError:
+        obj.setelement(5, _probe_value(object_type.element_type))
+    except oracle.Error:
         return True
     else:
         return False
@@ -416,19 +442,19 @@ def cursor_var(
     plsql: Database, cursor: oracle.Cursor, resolved: ResolvedName, plsql_type: Argument
 ):
     plsql_types = {
-        1: oracle.STRING,
-        2: oracle.NUMBER,
-        3: oracle.NATIVE_INT,
-        8: oracle.LONG_STRING,  # LONG
-        11: oracle.STRING,  # ROWID
-        12: oracle.DATETIME,
-        23: oracle.BINARY,
-        24: oracle.LONG_BINARY,
-        96: oracle.STRING,  # FIXED_CHAR
-        112: oracle.STRING,  # CLOB
-        113: oracle.BLOB,
-        180: oracle.TIMESTAMP,
-        252: oracle.BOOLEAN,
+        1: oracle.DB_TYPE_VARCHAR,
+        2: oracle.DB_TYPE_NUMBER,
+        3: oracle.DB_TYPE_BINARY_INTEGER,
+        8: oracle.DB_TYPE_LONG,  # LONG
+        11: oracle.DB_TYPE_VARCHAR,  # ROWID
+        12: oracle.DB_TYPE_DATE,
+        23: oracle.DB_TYPE_RAW,
+        24: oracle.DB_TYPE_LONG_RAW,
+        96: oracle.DB_TYPE_VARCHAR,  # FIXED_CHAR
+        112: oracle.DB_TYPE_VARCHAR,  # CLOB
+        113: oracle.DB_TYPE_BLOB,
+        180: oracle.DB_TYPE_TIMESTAMP,
+        252: oracle.DB_TYPE_BOOLEAN,
     }
 
     try:
@@ -629,13 +655,20 @@ class Database:
         user: str,
         password: str,
         service_auth: Tuple[str, int, str],
-        encoding: str,
+        oracle_client_dir: Optional[str] = None,
     ):
+        # thin mode reads PLS_INTEGER collection elements as BOOLEAN, thick does not
+        if oracle_client_dir:
+            oracle.init_oracle_client(lib_dir=oracle_client_dir)
+
         host, port, service_name = service_auth
 
-        dsn = oracle.makedsn(host, port, service_name=service_name)
         self._connection = oracle.connect(
-            user=user, password=password, dsn=dsn, encoding=encoding, nencoding=encoding
+            user=user,
+            password=password,
+            host=host,
+            port=int(port),
+            service_name=service_name,
         )
 
     def is_schema(self, schema_name: str) -> bool:

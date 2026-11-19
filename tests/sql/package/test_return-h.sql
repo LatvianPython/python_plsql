@@ -132,7 +132,7 @@ CREATE OR REPLACE PACKAGE test_return AS
     --FUNCTION ret_binary_integer
     --RETURN BINARY_INTEGER;
 
-    -- 121 OBJECT                                           -- cx_Oracle.Object ???
+    -- 121 OBJECT                                           -- oracledb.DbObject ???
     --FUNCTION ret_binary_integer
     --RETURN BINARY_INTEGER;
 

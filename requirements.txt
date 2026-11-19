@@ -1,2 +1,2 @@
-cx_Oracle
+oracledb
 pytest

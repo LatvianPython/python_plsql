@@ -10,7 +10,7 @@
 # 58  OPAQUE TYPE                                      -- ??? XMLType in Oracle
 # 96  CHAR (ANSI FIXED CHAR), CHARACTER                -- str
 # 106 MLSLABEL                                         -- ??? only backwards compatibility ???
-# 121 OBJECT                                           -- cx_Oracle.Object ???
+# 121 OBJECT                                           -- oracledb.DbObject ???
 # 122 NESTED TABLE                                     -- list
 # 123 VARRAY                                           -- list
 # 178 TIME                                             -- datetime.datetime

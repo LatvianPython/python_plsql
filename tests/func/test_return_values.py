@@ -1,6 +1,9 @@
 import pytest
 import datetime
 
+from tests.func import DUAL_ROWID
+from tests.func import resolve
+
 RECORD = (42, 84, 126)
 VARRAY = list(range(10, 0, -1))
 NESTED = [i * 2 for i in range(1, 11)]
@@ -26,7 +29,7 @@ PLSQL_TABLE = {i: i for i in range(1, 11)}
         ("ret_natural", 42),
         ("ret_clob", "42"),
         ("ret_long", "42"),
-        ("ret_rowid", "AAAACPAABAAAAShAAA"),
+        ("ret_rowid", DUAL_ROWID),
         ("ret_date", datetime.datetime(year=2019, month=12, day=20)),
         ("ret_timestamp", datetime.datetime(year=2019, month=12, day=20)),
         ("ret_raw", b"42"),
@@ -35,11 +38,7 @@ PLSQL_TABLE = {i: i for i in range(1, 11)}
         ("ret_character", "42"),
         ("ret_bool", True),
         ("ret_record", RECORD),
-        pytest.param(
-            "ret_record_of_records",
-            (42, RECORD, RECORD),
-            marks=pytest.mark.xfail(reason="second record weird offset"),
-        ),
+        ("ret_record_of_records", (42, RECORD, RECORD)),
         ("ret_record_of_nested", (42, NESTED, NESTED)),
         ("ret_record_of_plsql_table", (42, PLSQL_TABLE, PLSQL_TABLE),),
         ("ret_nested", NESTED),
@@ -48,39 +47,15 @@ PLSQL_TABLE = {i: i for i in range(1, 11)}
         ("ret_varray", VARRAY),
         ("ret_plsql_table", PLSQL_TABLE),
         ("ret_plsql_table_of_records", {i: RECORD for i in range(1, 11)}),
-        pytest.param(
-            "ret_varray_of_plsql_table",
-            [PLSQL_TABLE] * 10,
-            marks=pytest.mark.skip(reason="Memory access violation"),
-        ),
-        pytest.param(
-            "ret_varray_of_nested",
-            [NESTED] * 10,
-            marks=pytest.mark.skip(reason="Memory access violation"),
-        ),
-        pytest.param(
-            "ret_plsql_table_of_nested",
-            {i: NESTED for i in range(1, 11)},
-            marks=pytest.mark.skip(reason="Memory access violation"),
-        ),
-        pytest.param(
-            "ret_nested_of_nested",
-            [NESTED] * 10,
-            marks=pytest.mark.skip(reason="Memory access violation"),
-        ),
-        pytest.param(
-            "ret_nested_of_plsql_table",
-            [PLSQL_TABLE] * 10,
-            marks=pytest.mark.skip(reason="Memory access violation"),
-        ),
-        pytest.param(
-            "ret_plsql_table_of_plsql_table",
-            {i: PLSQL_TABLE for i in range(1, 11)},
-            marks=pytest.mark.skip(reason="Memory access violation"),
-        ),
+        ("ret_varray_of_plsql_table", [PLSQL_TABLE] * 10),
+        ("ret_varray_of_nested", [NESTED] * 10),
+        ("ret_plsql_table_of_nested", {i: NESTED for i in range(1, 11)}),
+        ("ret_nested_of_nested", [NESTED] * 10),
+        ("ret_nested_of_plsql_table", [PLSQL_TABLE] * 10),
+        ("ret_plsql_table_of_plsql_table", {i: PLSQL_TABLE for i in range(1, 11)}),
     ],
 )
 def test_return_values(plsql, func, expected):
     return_value = getattr(plsql.test_return, func)()
 
-    assert return_value == expected
+    assert return_value == resolve(plsql, expected)
