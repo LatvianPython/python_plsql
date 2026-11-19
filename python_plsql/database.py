@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+from typing import Dict
 from typing import Iterator
 from typing import Optional
 from typing import Tuple
@@ -22,9 +24,16 @@ class Schema:
         self._plsql, self._name = plsql, name
 
     def __getattr__(self, item: str) -> Optional[Union[Subprogram, Package]]:
+        if item.startswith("_"):
+            raise AttributeError(item)
+
         item = f"{self._name}.{item}"
-        name = self._plsql._name_resolve(item)
-        return search_object(plsql=self._plsql, name=name, item=item)
+        return self._plsql._cached(
+            item,
+            lambda: search_object(
+                plsql=self._plsql, name=self._plsql._name_resolve(item), item=item
+            ),
+        )
 
 
 class Package:
@@ -32,12 +41,17 @@ class Package:
         self._plsql, self._name = plsql, name
 
     def __getattr__(self, item: str) -> Subprogram:
+        if item.startswith("_"):
+            raise AttributeError(item)
+
         item = f"{self._name}.{item}"
-        name = self._plsql._name_resolve(item)
-        return Subprogram(
-            plsql=self._plsql,
-            resolved=name,
-            arguments=self._plsql._describe_procedure(item),
+        return self._plsql._cached(
+            item,
+            lambda: Subprogram(
+                plsql=self._plsql,
+                resolved=self._plsql._name_resolve(item),
+                arguments=self._plsql._describe_procedure(item),
+            ),
         )
 
 
@@ -68,24 +82,62 @@ def search_object(
 class Database:
     def __init__(
         self,
-        user: str,
-        password: str,
-        service_auth: Tuple[str, int, str],
+        user: Optional[str] = None,
+        password: Optional[str] = None,
+        service_auth: Optional[Tuple[str, int, str]] = None,
         oracle_client_dir: Optional[str] = None,
+        connection: Optional[oracle.Connection] = None,
     ):
+        self._objects: Dict[str, Any] = {}
+        self._types: Dict[Tuple[Any, ...], oracle.DbObjectType] = {}
+
         # thin mode reads PLS_INTEGER collection elements as BOOLEAN, thick does not
         if oracle_client_dir:
             oracle.init_oracle_client(lib_dir=oracle_client_dir)
 
-        host, port, service_name = service_auth
+        self._owns_connection = connection is None
 
-        self._connection = oracle.connect(
-            user=user,
-            password=password,
-            host=host,
-            port=int(port),
-            service_name=service_name,
-        )
+        if connection is None:
+            if service_auth is None:
+                raise ValueError("Either service_auth or connection is required")
+
+            host, port, service_name = service_auth
+
+            connection = oracle.connect(
+                user=user,
+                password=password,
+                host=host,
+                port=int(port),
+                service_name=service_name,
+            )
+
+        self._connection = connection
+
+    def __enter__(self) -> Database:
+        return self
+
+    def __exit__(self, *exc_info) -> None:
+        self.close()
+
+    def close(self) -> None:
+        # a connection passed in by the caller stays open
+        if self._owns_connection:
+            self._connection.close()
+
+    def clear_cache(self) -> None:
+        self._objects.clear()
+        self._types.clear()
+
+    def _cached(self, item: str, factory):
+        key = item.lower()
+
+        try:
+            return self._objects[key]
+        except KeyError:
+            found = factory()
+            if found is not None:
+                self._objects[key] = found
+            return found
 
     def is_schema(self, schema_name: str) -> bool:
         return bool(
@@ -96,17 +148,23 @@ class Database:
         )
 
     def __getattr__(self, item) -> Union[Schema, Package, Subprogram]:
+        if item.startswith("_"):
+            raise AttributeError(item)
+
+        return self._cached(item, lambda: self._find(item))
+
+    def _find(self, item: str) -> Union[Schema, Package, Subprogram]:
         try:
             name = self._name_resolve(item)
         except (oracle.DatabaseError, NotFound):
             if self.is_schema(schema_name=item):
                 return Schema(plsql=self, name=item)
-            raise NotFound
+            raise NotFound(f"name {item} not found")
         else:
             if found_object := search_object(plsql=self, name=name, item=item):
                 return found_object
 
-        raise AttributeError
+        raise AttributeError(f"{item} is not a schema, package or subprogram")
 
     def _describe_procedure(self, name: str) -> Iterator[Argument]:
         arguments = _dbms_describe_describe_procedure(self._connection, name)

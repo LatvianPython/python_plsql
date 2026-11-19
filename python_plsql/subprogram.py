@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import namedtuple
-from functools import wraps
 from itertools import groupby
 from operator import attrgetter
 from operator import itemgetter
@@ -44,15 +43,19 @@ class Overload:
         ]
 
     def match(self, *args, **kwargs) -> bool:
-        argument_count = len(args) + len(kwargs)
+        if len(args) > len(self.arguments):
+            return False
 
-        exact_match = argument_count == len(self.arguments)
+        by_name = self.arguments[len(args) :]
+        names = {name.upper() for name in kwargs}
 
-        if argument_count < len(self.arguments):
-            return argument_count == len(
-                [argument for argument in self.arguments if not argument.default_value]
-            )
-        return exact_match
+        if not names <= {argument.argument_name for argument in by_name}:
+            return False
+
+        return all(
+            argument.default_value or argument.argument_name in names
+            for argument in by_name
+        )
 
     def argument(self, name: str) -> Optional[Argument]:
         for argument in self.arguments:
@@ -103,9 +106,11 @@ def wrap_named(match, plsql, resolved, cursor, named):
     wrapped_named = {}
     for key, value in named.items():
         argument = match.argument(key)
-        if argument:
-            _, converter = cursor_var(plsql, cursor, resolved, argument)
-            wrapped_named[key] = converter.to_oracle(value)
+        if argument is None:
+            raise TypeError(f"{resolved.name} got an unexpected argument {key!r}")
+
+        _, converter = cursor_var(plsql, cursor, resolved, argument)
+        wrapped_named[key] = converter.to_oracle(value)
 
     return wrapped_named
 
@@ -133,39 +138,6 @@ def in_out_parameters(positional, named, match: Overload):
     return in_out_rec(*map(to_python, map(itemgetter(0), in_out)))
 
 
-def translate_arguments(match_filter):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(self: Subprogram, *positional, **named):
-            match = find_match(self.overloads, match_filter, *positional, **named)
-
-            with self._plsql._connection.cursor() as cursor:
-
-                wrapped_positional = wrap_positional(
-                    match, self._plsql, self.resolved, cursor, positional
-                )
-
-                wrapped_named = wrap_named(
-                    match, self._plsql, self.resolved, cursor, named
-                )
-
-                result = func(self, match, cursor, wrapped_positional, wrapped_named)
-
-                in_out = in_out_parameters(wrapped_positional, wrapped_named, match)
-
-            if match.is_function:
-                if in_out:
-                    return result, in_out
-                return result
-
-            if in_out:
-                return in_out
-
-        return wrapper
-
-    return decorator
-
-
 class Subprogram:
     def __init__(
         self, plsql: Database, resolved: ResolvedName, arguments: Iterator[Argument]
@@ -176,22 +148,55 @@ class Subprogram:
             group_by_overload(arguments=arguments),
         )
 
-    @translate_arguments(match_filter=lambda x: x.is_function)
-    def _call_function(self, match: Overload, cursor, positional, named):
-        object_type, converter = cursor_var(
-            plsql=self._plsql,
-            cursor=cursor,
-            resolved=self.resolved,
-            plsql_type=match.return_type,
+    def _call(self, is_function: bool, positional, named):
+        match = find_match(
+            self.overloads,
+            lambda overload: overload.is_function == is_function,
+            *positional,
+            **named,
         )
 
-        result = cursor.callfunc(self.resolved.name, object_type, positional, named)
-        return converter.from_oracle(result)
+        with self._plsql._connection.cursor() as cursor:
+            wrapped_positional = wrap_positional(
+                match, self._plsql, self.resolved, cursor, positional
+            )
 
-    @translate_arguments(match_filter=lambda x: not x.is_function)
-    def _call_procedure(self, match: Overload, cursor, positional, named):
-        _ = match
-        cursor.callproc(self.resolved.name, positional, named)
+            wrapped_named = wrap_named(match, self._plsql, self.resolved, cursor, named)
+
+            if is_function:
+                object_type, converter = cursor_var(
+                    plsql=self._plsql,
+                    cursor=cursor,
+                    resolved=self.resolved,
+                    plsql_type=match.return_type,
+                )
+
+                result = converter.from_oracle(
+                    cursor.callfunc(
+                        self.resolved.name,
+                        object_type,
+                        wrapped_positional,
+                        wrapped_named,
+                    )
+                )
+            else:
+                cursor.callproc(self.resolved.name, wrapped_positional, wrapped_named)
+
+            in_out = in_out_parameters(wrapped_positional, wrapped_named, match)
+
+        if is_function:
+            if in_out:
+                return result, in_out
+            return result
+
+        if in_out:
+            return in_out
+
+    def _call_function(self, *positional, **named):
+        return self._call(True, positional, named)
+
+    def _call_procedure(self, *positional, **named):
+        return self._call(False, positional, named)
 
     def __call__(self, *args, **kwargs):
         if self.is_overloaded and self.is_function and self.is_procedure:

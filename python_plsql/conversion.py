@@ -83,9 +83,7 @@ def type_name(plsql: Database, resolved: ResolvedName, plsql_type: Argument):
 
 
 def convert(object_type, value):
-    if isinstance(object_type, oracle.DbType):
-        pass
-    elif object_type:
+    if object_type and not isinstance(object_type, oracle.DbType):
         return make_in_converter(object_type)(value)
     return value
 
@@ -172,35 +170,55 @@ class UserVar:
         return to_python(value)
 
 
+_PLSQL_TYPES = {
+    1: oracle.DB_TYPE_VARCHAR,
+    2: oracle.DB_TYPE_NUMBER,
+    3: oracle.DB_TYPE_BINARY_INTEGER,
+    8: oracle.DB_TYPE_LONG,  # LONG
+    11: oracle.DB_TYPE_VARCHAR,  # ROWID
+    12: oracle.DB_TYPE_DATE,
+    23: oracle.DB_TYPE_RAW,
+    24: oracle.DB_TYPE_LONG_RAW,
+    96: oracle.DB_TYPE_VARCHAR,  # FIXED_CHAR
+    112: oracle.DB_TYPE_VARCHAR,  # CLOB
+    113: oracle.DB_TYPE_BLOB,
+    180: oracle.DB_TYPE_TIMESTAMP,
+    252: oracle.DB_TYPE_BOOLEAN,
+}
+
+# nested table # varray # plsql record # plsql table
+_USER_DEFINED_TYPES = {122, 123, 250, 251}
+
+
+def user_defined_type(
+    plsql: Database, resolved: ResolvedName, plsql_type: Argument
+) -> oracle.DbObjectType:
+    key = (
+        resolved.object_id,
+        resolved.subprogram_id,
+        plsql_type.overload,
+        plsql_type.position,
+    )
+
+    try:
+        return plsql._types[key]
+    except KeyError:
+        object_type = plsql._types[key] = plsql._connection.gettype(
+            type_name(plsql=plsql, resolved=resolved, plsql_type=plsql_type)
+        )
+        return object_type
+
+
 def cursor_var(
     plsql: Database, cursor: oracle.Cursor, resolved: ResolvedName, plsql_type: Argument
 ):
-    plsql_types = {
-        1: oracle.DB_TYPE_VARCHAR,
-        2: oracle.DB_TYPE_NUMBER,
-        3: oracle.DB_TYPE_BINARY_INTEGER,
-        8: oracle.DB_TYPE_LONG,  # LONG
-        11: oracle.DB_TYPE_VARCHAR,  # ROWID
-        12: oracle.DB_TYPE_DATE,
-        23: oracle.DB_TYPE_RAW,
-        24: oracle.DB_TYPE_LONG_RAW,
-        96: oracle.DB_TYPE_VARCHAR,  # FIXED_CHAR
-        112: oracle.DB_TYPE_VARCHAR,  # CLOB
-        113: oracle.DB_TYPE_BLOB,
-        180: oracle.DB_TYPE_TIMESTAMP,
-        252: oracle.DB_TYPE_BOOLEAN,
-    }
-
     try:
-        object_type = plsql_types[plsql_type.datatype]
+        object_type = _PLSQL_TYPES[plsql_type.datatype]
     except KeyError:
-        # nested table # varray # plsql record # plsql table
-        if plsql_type.datatype not in {122, 123, 250, 251}:
+        if plsql_type.datatype not in _USER_DEFINED_TYPES:
             raise
 
-        object_type = plsql._connection.gettype(
-            type_name(plsql=plsql, resolved=resolved, plsql_type=plsql_type)
-        )
+        object_type = user_defined_type(plsql, resolved, plsql_type)
 
         return (
             object_type,

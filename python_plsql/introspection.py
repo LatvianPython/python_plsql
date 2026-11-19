@@ -83,7 +83,7 @@ def _dbms_describe_describe_procedure(
             )
         except oracle.DatabaseError as err:
             if err.args[0].code == 20001:
-                raise NotFound
+                raise NotFound(f"subprogram {name} not found") from err
             raise
 
         return zip(
@@ -152,7 +152,5 @@ def _exhaustive_name_resolution(
             if err.args[0].code in (4047, 6564):
                 continue
             raise
-        else:
-            break
 
     raise NotFound(f"name {name} not found")

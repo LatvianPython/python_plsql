@@ -11,6 +11,7 @@ from .conversion import record_out_converter
 from .conversion import to_python
 from .conversion import to_record
 from .conversion import type_name
+from .conversion import user_defined_type
 from .database import Database
 from .database import Package
 from .database import Schema
@@ -27,7 +28,6 @@ from .subprogram import find_match
 from .subprogram import group_by_overload
 from .subprogram import in_out_parameters
 from .subprogram import return_type
-from .subprogram import translate_arguments
 from .subprogram import wrap_named
 from .subprogram import wrap_positional
 
@@ -60,8 +60,8 @@ __all__ = [
     "search_object",
     "to_python",
     "to_record",
-    "translate_arguments",
     "type_name",
+    "user_defined_type",
     "wrap_named",
     "wrap_positional",
 ]
