@@ -4,10 +4,8 @@ from collections import namedtuple
 from itertools import groupby
 from operator import attrgetter
 from operator import itemgetter
-from typing import Iterator
-from typing import List
-from typing import Optional
 from typing import TYPE_CHECKING
+from typing import Iterator
 
 from .conversion import cursor_var
 from .conversion import to_python
@@ -20,7 +18,7 @@ if TYPE_CHECKING:
     from .database import Database
 
 
-def return_type(arguments: List[Argument]) -> Optional[Argument]:
+def return_type(arguments: list[Argument]) -> Argument | None:
     """
     Extracts return type from list of arguments.
     According to Oracle documentation: "Position 0 returns the values for the return type of a function."
@@ -57,7 +55,7 @@ class Overload:
             for argument in by_name
         )
 
-    def argument(self, name: str) -> Optional[Argument]:
+    def argument(self, name: str) -> Argument | None:
         for argument in self.arguments:
             if argument.argument_name == name.upper():
                 return argument
@@ -67,7 +65,7 @@ class Overload:
         return bool(self.return_type)
 
 
-def group_by_overload(arguments: Iterator[Argument]) -> List[Overload]:
+def group_by_overload(arguments: Iterator[Argument]) -> list[Overload]:
     return [
         Overload(arguments=grouped_arguments)
         for _, grouped_arguments in groupby(arguments, attrgetter("overload"))
@@ -75,7 +73,7 @@ def group_by_overload(arguments: Iterator[Argument]) -> List[Overload]:
 
 
 def find_match(
-    overloads: List[Overload], filter_function, *positional, **named
+    overloads: list[Overload], filter_function, *positional, **named
 ) -> Overload:
 
     matches = [

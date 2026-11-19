@@ -1,7 +1,7 @@
-import pytest
 import itertools
 
 import oracledb
+import pytest
 
 
 def recurse_getattr(current, attributes):

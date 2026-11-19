@@ -4,7 +4,6 @@ from collections import namedtuple
 from enum import IntEnum
 from typing import Any
 from typing import Iterator
-from typing import Tuple
 
 import oracledb as oracle
 
@@ -38,7 +37,7 @@ class Direction(IntEnum):
 
 def _dbms_describe_describe_procedure(
     connection: oracle.Connection, name: str
-) -> Iterator[Tuple[Any, ...]]:
+) -> Iterator[tuple[Any, ...]]:
     """Wrapper for Oracle DBMS_DESCRIBE.DESCRIBE_PROCEDURE procedure"""
 
     number_table, varchar2_table = (
@@ -103,7 +102,7 @@ def _dbms_describe_describe_procedure(
 
 def _dbms_utility_name_resolve(
     connection: oracle.Connection, name: str, context: int
-) -> Tuple[str, str, str, str, int, int]:
+) -> tuple[str, str, str, str, int, int]:
     """Wrapper for Oracle DBMS_UTILITY.NAME_RESOLVE procedure"""
     with connection.cursor() as cursor:
         schema = cursor.var(str)
@@ -139,7 +138,7 @@ def _dbms_utility_name_resolve(
 
 def _exhaustive_name_resolution(
     connection: oracle.Connection, name: str
-) -> Tuple[str, str, str, str, int, int]:
+) -> tuple[str, str, str, str, int, int]:
     """Exhaustively searches for name in database using all available contexts possible in DBMS_UTILITY.NAME_RESOLVE"""
     for context in range(0, 10):
         try:

@@ -30,8 +30,7 @@ class Query:
             else:
                 records = map(itemgetter(0), cursor)
 
-            for record in records:
-                yield record
+            yield from records
 
     @property
     def first(self):

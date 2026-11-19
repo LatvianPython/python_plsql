@@ -1,8 +1,9 @@
-import pytest
 import datetime
 
-from tests.func import BlankPadded
+import pytest
+
 from tests.func import DUAL_ROWID
+from tests.func import BlankPadded
 from tests.func import resolve
 
 RECORD = (42, 84, 126)

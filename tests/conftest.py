@@ -2,10 +2,9 @@ import configparser
 from pathlib import Path
 
 import pytest
+from oracledb import DatabaseError
 
 from python_plsql import Database
-
-from oracledb import DatabaseError
 
 TESTS_DIR = Path(__file__).resolve().parent
 
@@ -55,7 +54,7 @@ def plsql():
 
 def create_objects(plsql, objects):
     for file_path, _ in objects:
-        with open(file_path, mode="r", encoding="utf8") as file:
+        with open(file_path, encoding="utf8") as file:
             sql_text = file.read()
         try:
             plsql.execute(sql_text)

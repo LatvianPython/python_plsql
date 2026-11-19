@@ -14,7 +14,8 @@ Start an Oracle Database Free container (creates `TEST_USER` on first start), th
 
 ```
 docker compose up -d
-pytest tests
+pip install -e ".[test]"
+pytest
 ```
 
 # Example(s)

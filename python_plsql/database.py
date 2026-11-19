@@ -1,11 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
-from typing import Dict
 from typing import Iterator
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 import oracledb as oracle
 
@@ -23,7 +19,7 @@ class Schema:
     def __init__(self, plsql: Database, name: str):
         self._plsql, self._name = plsql, name
 
-    def __getattr__(self, item: str) -> Optional[Union[Subprogram, Package]]:
+    def __getattr__(self, item: str) -> Subprogram | Package | None:
         if item.startswith("_"):
             raise AttributeError(item)
 
@@ -57,7 +53,7 @@ class Package:
 
 def search_object(
     plsql: Database, name: ResolvedName, item: str
-) -> Optional[Union[Subprogram, Package]]:
+) -> Subprogram | Package | None:
     if name.object_type in {
         ObjectTypes.function,
         ObjectTypes.procedure,
@@ -82,14 +78,14 @@ def search_object(
 class Database:
     def __init__(
         self,
-        user: Optional[str] = None,
-        password: Optional[str] = None,
-        service_auth: Optional[Tuple[str, int, str]] = None,
-        oracle_client_dir: Optional[str] = None,
-        connection: Optional[oracle.Connection] = None,
+        user: str | None = None,
+        password: str | None = None,
+        service_auth: tuple[str, int, str] | None = None,
+        oracle_client_dir: str | None = None,
+        connection: oracle.Connection | None = None,
     ):
-        self._objects: Dict[str, Any] = {}
-        self._types: Dict[Tuple[Any, ...], oracle.DbObjectType] = {}
+        self._objects: dict[str, Any] = {}
+        self._types: dict[tuple[Any, ...], oracle.DbObjectType] = {}
 
         # thin mode reads PLS_INTEGER collection elements as BOOLEAN, thick does not
         if oracle_client_dir:
@@ -147,19 +143,19 @@ class Database:
             ).first
         )
 
-    def __getattr__(self, item) -> Union[Schema, Package, Subprogram]:
+    def __getattr__(self, item) -> Schema | Package | Subprogram:
         if item.startswith("_"):
             raise AttributeError(item)
 
         return self._cached(item, lambda: self._find(item))
 
-    def _find(self, item: str) -> Union[Schema, Package, Subprogram]:
+    def _find(self, item: str) -> Schema | Package | Subprogram:
         try:
             name = self._name_resolve(item)
-        except (oracle.DatabaseError, NotFound):
+        except (oracle.DatabaseError, NotFound) as err:
             if self.is_schema(schema_name=item):
                 return Schema(plsql=self, name=item)
-            raise NotFound(f"name {item} not found")
+            raise NotFound(f"name {item} not found") from err
         else:
             if found_object := search_object(plsql=self, name=name, item=item):
                 return found_object

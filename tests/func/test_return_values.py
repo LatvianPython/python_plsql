@@ -1,5 +1,6 @@
-import pytest
 import datetime
+
+import pytest
 
 from tests.func import DUAL_ROWID
 from tests.func import resolve

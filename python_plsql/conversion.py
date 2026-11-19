@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections import namedtuple
 from datetime import datetime
-from typing import Any
 from typing import TYPE_CHECKING
+from typing import Any
 
 import oracledb as oracle
 
